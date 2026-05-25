@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
 <meta http-equiv="X-Frame-Options" content="DENY"/>
-<title>MedEquip Inventory</title>
+<title>MedEquip Inventory Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +16,7 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{font-family:'Nunito',sans-serif;background:#8faab5;min-height:100vh;display:flex;justify-content:center;overscroll-behavior:none}
+body{font-family:'Nunito',sans-serif;background:#8faab5;min-height:100vh;display:flex;justify-content:flex-start;overscroll-behavior:none}
 :root{
   --teal:#1a8fa0;--teal-dk:#14717f;--teal-lt:#e6f6f8;--teal-mid:#c0e8ef;
   --green:#22c55e;--green-lt:#dcfce7;--green-dk:#16a34a;
@@ -27,12 +27,52 @@ body{font-family:'Nunito',sans-serif;background:#8faab5;min-height:100vh;display
   --bg:#f0f4f6;--card:#ffffff;--text:#1e293b;--sub:#64748b;--border:#e2e8f0;
   --shadow:0 2px 12px rgba(0,0,0,.08);--shadow-lg:0 8px 32px rgba(0,0,0,.14);
 }
-#app{width:100%;max-width:430px;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.25)}
+/* Mobile shell */
+#app{width:100%;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;position:relative}
+/* Desktop: two-column layout with sidebar */
+@media(min-width:900px){
+  body{background:#dde8ed;flex-direction:row;align-items:flex-start;min-height:100vh}
+  #app{flex-direction:row;max-width:1280px;margin:0 auto;box-shadow:0 0 60px rgba(0,0,0,.18);border-radius:0;min-height:100vh}
+  #sidebar{width:240px;flex-shrink:0;background:var(--teal-dk);min-height:100vh;display:flex;flex-direction:column;padding:28px 0 20px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  #main-content{flex:1;min-width:0;min-height:100vh;position:relative;overflow-x:hidden}
+  .bnav{display:none!important}
+  .screen{padding-bottom:24px!important}
+  .page-hero{padding:32px 32px 28px}
+  .page-hero h1{font-size:28px}
+  div[style*="padding:16px;display:flex;flex-direction:column"]{padding:24px 32px!important}
+  div[style*="padding:16px;display:flex;flex-direction:column;gap:14px"]{padding:24px 32px!important}
+  div[style*="padding:16px;display:flex;flex-direction:column;gap:16px"]{padding:24px 32px!important}
+  div[style*="padding:16px;display:flex;flex-direction:column;gap:12px"]{padding:24px 32px!important}
+  div[style*="padding:16px"]{padding:24px 32px!important}
+  .fullscreen{position:fixed;left:240px;right:0;transform:none;max-width:none;width:auto}
+  .overlay{left:240px}
+  .mbox{max-width:520px;align-self:flex-end;border-radius:20px 20px 0 0}
+  #offline-bar{left:240px;transform:none;max-width:none}
+  .tile{padding:22px 18px 26px}
+}
+@media(min-width:1100px){
+  #sidebar{width:260px}
+  .fullscreen{left:260px}
+  .overlay{left:260px}
+}
+/* Tablet */
+@media(min-width:600px) and (max-width:899px){
+  body{background:#dde8ed;justify-content:center}
+  #app{max-width:600px;border-radius:0;box-shadow:0 0 40px rgba(0,0,0,.2)}
+  #sidebar{display:none}
+  .page-hero h1{font-size:26px}
+}
+/* Mobile */
+@media(max-width:599px){
+  #sidebar{display:none}
+  #app{max-width:430px}
+}
 .screen{flex:1;overflow-y:auto;padding-bottom:88px;animation:fadeUp .2s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── Nav ── */
-.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -4px 20px rgba(0,0,0,.07)}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -4px 20px rgba(0,0,0,.07);max-width:430px;left:50%;transform:translateX(-50%)}
+@media(min-width:600px) and (max-width:899px){.bnav{max-width:600px}}
 .nbtn{flex:1;background:none;border:none;padding:10px 2px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;user-select:none;position:relative}
 .nbtn .ico{font-size:19px;line-height:1;filter:grayscale(1) opacity(.35);transition:filter .15s}
 .nbtn .lbl{font-size:9.5px;font-weight:700;letter-spacing:.3px;color:var(--sub);font-family:'Nunito',sans-serif}
@@ -77,6 +117,7 @@ input[type=date].inp{color-scheme:light}
 
 /* ── Full-screen slide ── */
 .fullscreen{position:fixed;inset:0;background:var(--bg);z-index:50;overflow-y:auto;max-width:430px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;animation:slideRight .22s ease both}
+@media(min-width:600px) and (max-width:899px){.fullscreen{max-width:600px}}
 @keyframes slideRight{from{opacity:0;transform:translateX(calc(50% + 24px))}to{opacity:1;transform:translateX(-50%)}}
 .fs-header{background:var(--card);padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
 .fs-back{background:var(--teal-lt);border:none;cursor:pointer;color:var(--teal);font-family:'Nunito',sans-serif;padding:7px 12px;border-radius:10px;font-weight:700;font-size:14px}
@@ -103,12 +144,13 @@ input[type=date].inp{color-scheme:light}
 .report-row{padding:14px 16px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform .12s}
 .report-row:active{transform:scale(.975)}
 #offline-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#f97316;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:6px;z-index:200;display:none}
+@media(min-width:600px) and (max-width:899px){#offline-bar{max-width:600px}}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 </style>
 </head>
 <body>
-<div id="offline-bar">⚠️ OFFLINE MODE</div>
+<div id="offline-bar">⚠️ OFFLINE</div>
 <div id="app"></div>
 <script>
 "use strict";
@@ -177,6 +219,13 @@ const sb=(()=>{
     bulkInsert:(t,rows)=>req(SUPABASE_URL+"/rest/v1/"+t,{method:"POST",headers:hdr({Prefer:"return=representation,resolution=ignore-duplicates"}),body:JSON.stringify(rows)}),
     signIn:(email,pw)=>req(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON},body:JSON.stringify({email,password:pw})}),
     signOut:(tok)=>req(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON,"Authorization":"Bearer "+tok}}),
+    // Settings table: key-value store synced across all devices
+    getSettings:()=>req(SUPABASE_URL+"/rest/v1/settings?select=key,value",{headers:hdr()}),
+    setSetting:(key,value)=>req(SUPABASE_URL+"/rest/v1/settings",{
+      method:"POST",
+      headers:hdr({Prefer:"return=representation,resolution=merge-duplicates"}),
+      body:JSON.stringify({key,value:JSON.stringify(value)}),
+    }),
   };
 })();
 
@@ -356,7 +405,11 @@ function startPolling(){
     try{
       const since=STATE.lastFetch?new Date(STATE.lastFetch).toISOString().slice(0,10):new Date(0).toISOString().slice(0,10);
       const r=await sb.query("equipment","last_updated=gte."+encodeURIComponent(since)+"&select=id");
-      if(Array.isArray(r)&&r.length>0){await fetchEquipment();showToast("🔄 Updated by another user","info");}
+      if(Array.isArray(r)&&r.length>0){await fetchEquipment();showToast("🔄 Equipment updated by another user","info");}
+      // Also re-sync settings (catches hospital name / list changes from other devices)
+      const prevName=STATE.settings.hospitalName;
+      await loadSettingsFromDB();
+      if(STATE.settings.hospitalName!==prevName){render();} // re-render if changed
     }catch{}
   },30000);
 }
@@ -382,6 +435,41 @@ async function doLogin(email,pw){
 async function doLogout(){
   if(STATE.adminSession?.access_token&&!STATE.offline)try{await sb.signOut(STATE.adminSession.access_token);}catch{}
   STATE.adminSession=null;STATE.adminEmail="";sessionStorage.removeItem("medinv_admin");
+}
+
+/* ═══════════════════════════════════════════════════════
+   10b. SETTINGS SYNC (Supabase ↔ all devices)
+   Settings are stored in a Supabase 'settings' table
+   so changes on one device appear on all others.
+   localStorage is used as an offline fallback only.
+═══════════════════════════════════════════════════════ */
+async function loadSettingsFromDB(){
+  if(STATE.offline)return; // use localStorage fallback
+  try{
+    const rows=await sb.getSettings();
+    if(!Array.isArray(rows))return;
+    const map={};
+    rows.forEach(r=>{try{map[r.key]=JSON.parse(r.value);}catch{map[r.key]=r.value;}});
+    // Merge into STATE.settings (Supabase wins over localStorage)
+    if(map.hospitalName)   STATE.settings.hospitalName=map.hospitalName;
+    if(map.reminders!==undefined) STATE.settings.reminders=map.reminders;
+    if(map.calThreshold)   STATE.settings.calThreshold=map.calThreshold;
+    if(map.categories&&Array.isArray(map.categories)) STATE.settings.categories=map.categories;
+    if(map.locations&&Array.isArray(map.locations))   STATE.settings.locations=map.locations;
+    // Write merged result to localStorage as cache
+    saveP("medinv_settings",STATE.settings);
+  }catch(e){console.warn("Settings load failed:",e.message);}
+}
+
+async function saveSettingToDB(key,value){
+  // Always write to localStorage first (instant, offline-safe)
+  STATE.settings[key]=value;
+  saveP("medinv_settings",STATE.settings);
+  // Then sync to Supabase (admin only — enforced by RLS)
+  if(!STATE.offline){
+    try{await sb.setSetting(key,value);}
+    catch(e){console.warn("Setting sync failed:",e.message);}
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -525,20 +613,52 @@ function dlBlob(content,name,type){
 /* ═══════════════════════════════════════════════════════
    13. RENDER ENGINE
 ═══════════════════════════════════════════════════════ */
+function renderSidebar(){
+  const tabs=[
+    {id:"home",ico:"🏠",lbl:"Home"},
+    {id:"equipment",ico:"📋",lbl:"Equipment"},
+    {id:"maintenance",ico:"🔧",lbl:"Maintenance"},
+    {id:"reports",ico:"📊",lbl:"Reports"},
+    {id:"settings",ico:"⚙️",lbl:"Settings"},
+  ];
+  return '<div id="sidebar">'+
+    '<div style="padding:0 20px 24px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:16px">'+
+      '<div style="font-size:22px;font-weight:900;color:#fff;line-height:1.1">🏥 MedEquip</div>'+
+      '<div style="font-size:10px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1.5px;margin-top:4px">Inventory System</div>'+
+    '</div>'+
+    tabs.map(t=>{
+      const active=STATE.tab===t.id;
+      return '<button data-nav="'+t.id+'" style="display:flex;align-items:center;gap:12px;padding:12px 20px;width:100%;background:'+(active?"rgba(255,255,255,.15)":"none")+';border:none;cursor:pointer;text-align:left;border-left:3px solid '+(active?"#fff":"transparent")+';transition:background .15s;margin-bottom:2px">'+
+        '<span style="font-size:18px;opacity:'+(active?1:.65)+'">'+t.ico+'</span>'+
+        '<span style="font-size:14px;font-weight:'+(active?800:600)+';color:'+(active?"#fff":"rgba(255,255,255,.7)")+'">'+t.lbl+'</span>'+
+      '</button>';
+    }).join("")+
+    '<div style="flex:1"></div>'+
+    '<div style="padding:16px 20px;border-top:1px solid rgba(255,255,255,.12);margin-top:16px">'+
+      (isAdmin()
+        ?'<div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:6px;font-weight:600">🟢 Admin</div>'+
+          '<div style="font-size:12px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(STATE.adminEmail)+'</div>'
+        :'<div style="font-size:11px;color:rgba(255,255,255,.6);font-weight:600">👁 Read-Only Mode</div>')+
+    '</div>'+
+    (STATE.offline?'<div style="margin:0 12px 12px;background:rgba(249,115,22,.3);border-radius:8px;padding:7px 12px;font-size:10px;font-weight:700;color:#fed7aa;text-align:center">⚠️ Demo Mode</div>':"")+
+  '</div>';
+}
+
 function render(){
   const app=document.getElementById("app");if(!app)return;
   document.getElementById("offline-bar").style.display=STATE.offline?"block":"none";
   if(STATE.loading){
-    app.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;background:var(--bg)"><div style="font-size:56px;animation:pulse 1.5s infinite">🏥</div><div style="font-weight:900;color:var(--teal);font-size:18px">Loading MedEquip…</div><style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}</style></div>';
+    app.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;background:var(--bg);width:100%"><div style="font-size:56px;animation:pulse 1.5s infinite">🏥</div><div style="font-weight:900;color:var(--teal);font-size:18px">Loading MedEquip…</div><style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}</style></div>';
     return;
   }
   const fns={home:renderHome,equipment:renderEquipment,maintenance:renderMaintenance,reports:renderReports,settings:renderSettings};
   const screen=(fns[STATE.tab]||renderHome)();
   const nav=renderNav();
+  const sidebar=renderSidebar();
   const modal=STATE.modal?renderModal():"";
   const detail=STATE.detail?renderDetail():"";
   const report=STATE.report?renderReportDetail():"";
-  app.innerHTML=screen+nav+modal+detail+report;
+  app.innerHTML=sidebar+'<div id="main-content">'+screen+nav+'</div>'+modal+detail+report;
   bindEvents();
   if(STATE.report)renderChart();
 }
@@ -1007,6 +1127,25 @@ function renderModal(){
   if(STATE.modal==="sqlView"){
     const sql=`-- Run ONCE in Supabase SQL Editor:
 
+-- ── Settings table (syncs hospital name, lists etc across all devices) ──
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read settings"  ON settings FOR SELECT USING (true);
+CREATE POLICY "Admin write settings"  ON settings FOR INSERT WITH CHECK (auth.role()='authenticated');
+CREATE POLICY "Admin update settings" ON settings FOR UPDATE USING (auth.role()='authenticated');
+
+-- Seed default settings:
+INSERT INTO settings (key, value) VALUES
+  ('hospitalName', '"Hospital"'),
+  ('reminders',    'true'),
+  ('calThreshold', '30')
+ON CONFLICT (key) DO NOTHING;
+
+-- ── Equipment table ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS equipment (
   id                 TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   name               TEXT NOT NULL CHECK(length(name)>=2),
@@ -1237,16 +1376,16 @@ function bindEvents(){
   // Settings
   on("btn-open-settings-login",()=>{STATE.modal="adminLogin";render();});
   on("btn-logout",async()=>{await doLogout();showToast("Logged out","info");render();});
-  on("toggle-reminders",()=>{STATE.settings.reminders=!STATE.settings.reminders;saveP("medinv_settings",STATE.settings);render();});
+  on("toggle-reminders",()=>{const v=!STATE.settings.reminders;saveSettingToDB("reminders",v).then(()=>render());render();});
   on("btn-save-hospital",()=>{
     const v=san.name(document.getElementById("inp-hospital-name")?.value||"");
     if(!v||v.length<1){showToast("Invalid hospital name","error");return;}
-    STATE.settings.hospitalName=v;saveP("medinv_settings",STATE.settings);showToast("Hospital name saved ✓","success");render();
+    saveSettingToDB("hospitalName",v).then(()=>render());showToast("Hospital name saved ✓ — syncing…","success");
   });
   on("btn-save-notif",()=>{
     const t=san.num(document.getElementById("inp-cal-threshold")?.value||"30");
     if(t<1||t>365){showToast("Threshold must be 1–365","error");return;}
-    STATE.settings.calThreshold=t;saveP("medinv_settings",STATE.settings);showToast("Preferences saved ✓","success");
+    saveSettingToDB("calThreshold",t);showToast("Preferences saved ✓ — syncing…","success");
   });
   on("btn-add-cat",()=>{
     const list=document.getElementById("cat-list");if(!list)return;
@@ -1268,12 +1407,12 @@ function bindEvents(){
   on("btn-save-cats",()=>{
     const cats=[...document.querySelectorAll(".cat-item")].map(i=>san.text(i.value)).filter(v=>v.length>0);
     if(cats.length<1){showToast("At least 1 category required","error");return;}
-    STATE.settings.categories=cats;saveP("medinv_settings",STATE.settings);showToast(cats.length+" categories saved ✓","success");render();
+    saveSettingToDB("categories",cats).then(()=>render());showToast(cats.length+" categories saved ✓ — syncing…","success");
   });
   on("btn-save-locs",()=>{
     const locs=[...document.querySelectorAll(".loc-item")].map(i=>san.text(i.value)).filter(v=>v.length>0);
     if(locs.length<1){showToast("At least 1 location required","error");return;}
-    STATE.settings.locations=locs;saveP("medinv_settings",STATE.settings);showToast(locs.length+" locations saved ✓","success");render();
+    saveSettingToDB("locations",locs).then(()=>render());showToast(locs.length+" locations saved ✓ — syncing…","success");
   });
   on("btn-open-bulk",()=>{if(!isAdmin()){showToast("Admin required","error");return;}STATE.bulkResult=null;STATE.modal="bulkUpload";render();});
   on("btn-dl-template",downloadTemplate);
@@ -1288,7 +1427,7 @@ function bindEvents(){
     dropZone.addEventListener("drop",e=>{e.preventDefault();dropZone.style.borderColor="var(--border)";dropZone.style.background="#fff";const f=e.dataTransfer.files[0];if(f)parseBulkFile(f);else showToast("Please drop an Excel or CSV file","error");});
   }
   on("exp-csv-s",exportCSV);on("exp-xlsx-s",exportExcel);on("exp-pdf-s",exportPDF);
-  on("btn-reset-data",()=>{if(confirm("Reset to sample data? All changes will be lost.")){STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.settings.categories=[...DEFAULT_CATEGORIES];STATE.settings.locations=[...DEFAULT_LOCATIONS];saveP("medinv_settings",STATE.settings);showToast("Reset to sample data","info");render();}});
+  on("btn-reset-data",()=>{if(confirm("Reset to sample data? All changes will be lost.")){STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.settings={...DEFAULT_SETTINGS,categories:[...DEFAULT_CATEGORIES],locations:[...DEFAULT_LOCATIONS]};saveP("medinv_settings",STATE.settings);["hospitalName","reminders","calThreshold","categories","locations"].forEach(k=>saveSettingToDB(k,STATE.settings[k]));showToast("Reset to sample data","info");render();}});
   on("btn-show-sql",()=>{STATE.modal="sqlView";render();});
   on("btn-copy-sql",async()=>{const el=document.getElementById("sql-content");if(el)try{await navigator.clipboard.writeText(el.textContent);showToast("SQL copied ✓","success");}catch{showToast("Copy failed — select text manually","error");}});
 
@@ -1384,7 +1523,12 @@ if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON.includes("YOUR_ANON")){
   render();
 }else{
   render();
-  fetchEquipment().then(()=>startPolling());
+  // Load settings from Supabase first so hospital name is correct on all devices,
+  // then load equipment and start polling.
+  loadSettingsFromDB().then(()=>{
+    render(); // re-render with synced settings
+    fetchEquipment().then(()=>startPolling());
+  });
 }
 
 // Auto-logout on JWT expiry
