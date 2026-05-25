@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+<meta http-equiv="X-Frame-Options" content="DENY"/>
+<title>MedEquip Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Nunito',sans-serif;background:#8faab5;min-height:100vh;display:flex;justify-content:center;overscroll-behavior:none}
+:root{
+  --teal:#1a8fa0;--teal-dk:#14717f;--teal-lt:#e6f6f8;--teal-mid:#c0e8ef;
+  --green:#22c55e;--green-lt:#dcfce7;--green-dk:#16a34a;
+  --red:#ef4444;--red-lt:#fee2e2;
+  --amber:#f59e0b;--amber-lt:#fef3c7;
+  --blue:#3b82f6;--blue-lt:#dbeafe;
+  --orange:#f97316;
+  --bg:#f0f4f6;--card:#ffffff;--text:#1e293b;--sub:#64748b;--border:#e2e8f0;
+  --shadow:0 2px 12px rgba(0,0,0,.08);--shadow-lg:0 8px 32px rgba(0,0,0,.14);
+}
+#app{width:100%;max-width:430px;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;box-shadow:0 0 60px rgba(0,0,0,.25)}
+.screen{flex:1;overflow-y:auto;padding-bottom:88px;animation:fadeUp .2s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── Nav ── */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -4px 20px rgba(0,0,0,.07)}
+.nbtn{flex:1;background:none;border:none;padding:10px 2px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;user-select:none;position:relative}
+.nbtn .ico{font-size:19px;line-height:1;filter:grayscale(1) opacity(.35);transition:filter .15s}
+.nbtn .lbl{font-size:9.5px;font-weight:700;letter-spacing:.3px;color:var(--sub);font-family:'Nunito',sans-serif}
+.nbtn.active .ico{filter:none}
+.nbtn.active .lbl{color:var(--teal)}
+.nbtn.active::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:3px;background:var(--teal);border-radius:0 0 4px 4px}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:16px;box-shadow:var(--shadow)}
+.tile{background:var(--card);border-radius:16px;padding:18px 14px 22px;box-shadow:var(--shadow);position:relative;overflow:hidden;cursor:pointer;transition:transform .12s;-webkit-user-select:none}
+.tile:active{transform:scale(.96)}
+.tile-bar{position:absolute;bottom:0;left:0;right:0;height:5px}
+.eq-card{background:var(--card);border-radius:14px;padding:15px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid var(--border);transition:transform .12s}
+.eq-card:active{transform:scale(.975)}
+
+/* ── Status label row ── */
+.status-label{font-size:9px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.badge{display:inline-flex;align-items:center;font-size:10.5px;font-weight:800;border-radius:99px;padding:4px 10px;white-space:nowrap;line-height:1.4;letter-spacing:.2px}
+
+/* ── Buttons ── */
+.btn{font-family:'Nunito',sans-serif;font-weight:700;font-size:14px;border-radius:12px;border:none;cursor:pointer;padding:12px 14px;transition:opacity .15s,transform .1s;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;user-select:none}
+.btn:active{opacity:.82;transform:scale(.98)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-teal{background:var(--teal);color:#fff}
+.btn-outline{background:var(--card);color:var(--text);border:1.5px solid var(--border)}
+.btn-ghost{background:transparent;color:var(--teal);border:1.5px solid var(--teal-mid)}
+.btn-red{background:var(--red);color:#fff}
+.btn-amber{background:var(--amber);color:#fff}
+
+/* ── Inputs ── */
+.inp{font-family:'Nunito',sans-serif;font-size:14px;padding:11px 13px;border-radius:11px;border:1.5px solid var(--border);outline:none;width:100%;color:var(--text);background:#fff;transition:border .15s,box-shadow .15s;-webkit-appearance:none}
+.inp:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(26,143,160,.12)}
+.inp.err{border-color:var(--red)}
+input[type=date].inp{color-scheme:light}
+.field-err{font-size:11px;color:var(--red);display:none;margin-top:3px;font-weight:600}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:100;animation:fadeIn .15s ease;backdrop-filter:blur(3px)}
+.mbox{background:var(--card);border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:96vh;overflow-y:auto;padding:22px 18px 36px;display:flex;flex-direction:column;gap:13px;animation:slideUp .22s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(44px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── Full-screen slide ── */
+.fullscreen{position:fixed;inset:0;background:var(--bg);z-index:50;overflow-y:auto;max-width:430px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;animation:slideRight .22s ease both}
+@keyframes slideRight{from{opacity:0;transform:translateX(calc(50% + 24px))}to{opacity:1;transform:translateX(-50%)}}
+.fs-header{background:var(--card);padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
+.fs-back{background:var(--teal-lt);border:none;cursor:pointer;color:var(--teal);font-family:'Nunito',sans-serif;padding:7px 12px;border-radius:10px;font-weight:700;font-size:14px}
+
+/* ── Page hero ── */
+.page-hero{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dk) 100%);padding:26px 20px 22px;color:#fff}
+.page-hero h1{font-size:24px;font-weight:900;color:#fff;line-height:1.1}
+.page-hero p{font-size:11px;font-weight:700;letter-spacing:1.5px;opacity:.8;text-transform:uppercase;margin-top:4px}
+
+/* ── Misc ── */
+.sec-lbl{font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase}
+.ro-notice{background:#f8fafc;border:1.5px dashed var(--border);border-radius:11px;padding:11px 13px;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--sub);font-weight:600}
+.mcard-red{background:#fff5f5;border:1.5px solid var(--red);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.mcard-amb{background:#fffbeb;border:1.5px solid var(--amber);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.mcard-grn{background:var(--green-lt);border:1.5px solid var(--green);border-radius:14px;padding:16px;text-align:center;color:var(--green-dk);font-weight:700;font-size:14px}
+.toggle{width:46px;height:26px;border-radius:13px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.toggle-thumb{position:absolute;top:3px;width:20px;height:20px;border-radius:10px;background:#fff;transition:left .2s;box-shadow:0 1px 5px rgba(0,0,0,.22)}
+.info-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--border)}
+.info-row:last-child{border-bottom:none}
+.info-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.search-wrap{position:relative}
+.search-wrap::before{content:"🔍";position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;z-index:1;pointer-events:none}
+.search-wrap input{padding-left:36px}
+.report-row{padding:14px 16px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform .12s}
+.report-row:active{transform:scale(.975)}
+#offline-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#f97316;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:6px;z-index:200;display:none}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body>
+<div id="offline-bar">⚠️ OFFLINE MODE</div>
+<div id="app"></div>
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════
+   1. SECURITY & STORAGE UTILITIES
+═══════════════════════════════════════════════════════ */
+function esc(s){
+  return String(s==null?"":s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#x27;").replace(/\//g,"&#x2F;");
+}
+const san={
+  text:  s=>String(s==null?"":s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"").replace(/<[^>]*>/g,"").trim().slice(0,200),
+  name:  s=>String(s==null?"":s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"").replace(/<[^>]*>/g,"").trim().slice(0,120),
+  serial:s=>String(s==null?"":s).replace(/[^A-Za-z0-9 \-_./]/g,"").trim().slice(0,60),
+  notes: s=>String(s==null?"":s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"").replace(/<[^>]*>/g,"").trim().slice(0,500),
+  date:  s=>{const m=(/^(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))/).exec(String(s==null?"":s).trim());return m?m[1]:"";},
+  email: s=>String(s==null?"":s).toLowerCase().replace(/[^a-z0-9@._+\-]/g,"").slice(0,120),
+  num:   s=>{const n=parseInt(String(s==null?"":s));return isNaN(n)?0:n;},
+};
+const V={
+  name:      v=>v.trim().length>=2&&v.trim().length<=120,
+  serial:    v=>/^[A-Za-z0-9 \-_./]{1,60}$/.test(v.trim()),
+  email:     v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()),
+  date:      v=>/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v),
+  status:    v=>["functional_in_use","functional_not_in_use","non_functional","needs_repair","obsolete"].includes(v),
+  calStatus: v=>["cal_required","cal_not_required"].includes(v),
+};
+const _lr={n:0,t:0};
+function checkRate(){const now=Date.now();if(now>_lr.t){_lr.n=0;_lr.t=now+60000;}return ++_lr.n<=5;}
+
+// Storage — loadP/saveP use localStorage (persistent), loadS/saveS use sessionStorage (auth)
+function loadP(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
+function saveP(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+function loadS(k,fb){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
+function saveS(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+/* ═══════════════════════════════════════════════════════
+   2. CONFIGURATION — replace with your Supabase values
+═══════════════════════════════════════════════════════ */
+const SUPABASE_URL  = "https://lgblqdapsvrogwzsjpif.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnYmxxZGFwc3Zyb2d3enNqcGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2OTAxNjgsImV4cCI6MjA5NTI2NjE2OH0.JBf14-QxnEQ0XnlbuW1_VLCzhf5XkjcO_HUejWDMQ0E";
+
+/* ═══════════════════════════════════════════════════════
+   3. SUPABASE CLIENT
+═══════════════════════════════════════════════════════ */
+const sb=(()=>{
+  function hdr(x={}){
+    const tok=STATE?.adminSession?.access_token||SUPABASE_ANON;
+    return{"Content-Type":"application/json","apikey":SUPABASE_ANON,"Authorization":"Bearer "+tok,...x};
+  }
+  async function req(url,o={}){
+    const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);
+    try{
+      const r=await fetch(url,{...o,signal:c.signal});
+      clearTimeout(t);
+      if(!r.ok&&r.status!==204){const tx=await r.text();throw new Error("HTTP "+r.status+": "+tx.slice(0,200));}
+      return r.status===204?null:r.json();
+    }catch(e){clearTimeout(t);throw e;}
+  }
+  return{
+    query:(t,p="")=>req(SUPABASE_URL+"/rest/v1/"+t+"?"+p,{headers:hdr({Prefer:"return=representation"})}),
+    insert:(t,b)=>req(SUPABASE_URL+"/rest/v1/"+t,{method:"POST",headers:hdr({Prefer:"return=representation"}),body:JSON.stringify(b)}),
+    safeUpdate:(t,id,b,knownDate)=>req(SUPABASE_URL+"/rest/v1/"+t+"?id=eq."+encodeURIComponent(id)+"&last_updated=eq."+encodeURIComponent(knownDate),{method:"PATCH",headers:hdr({Prefer:"return=representation"}),body:JSON.stringify(b)}),
+    remove:(t,id)=>req(SUPABASE_URL+"/rest/v1/"+t+"?id=eq."+encodeURIComponent(id),{method:"DELETE",headers:hdr()}),
+    bulkInsert:(t,rows)=>req(SUPABASE_URL+"/rest/v1/"+t,{method:"POST",headers:hdr({Prefer:"return=representation,resolution=ignore-duplicates"}),body:JSON.stringify(rows)}),
+    signIn:(email,pw)=>req(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON},body:JSON.stringify({email,password:pw})}),
+    signOut:(tok)=>req(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON,"Authorization":"Bearer "+tok}}),
+  };
+})();
+
+/* ═══════════════════════════════════════════════════════
+   4. CONSTANTS
+═══════════════════════════════════════════════════════ */
+// ── Functional Status — exactly 5 options ──────────────────────────────────
+const STATUS_CFG={
+  functional_in_use:     {label:"Functional & In Use",       bg:"#22c55e",text:"#fff",icon:"✅"},
+  functional_not_in_use: {label:"Functional but Not in Use", bg:"#0891b2",text:"#fff",icon:"💤"},
+  non_functional:        {label:"Non-Functional",             bg:"#ef4444",text:"#fff",icon:"❌"},
+  needs_repair:          {label:"Needs Repair",               bg:"#dc2626",text:"#fff",icon:"🛠️"},
+  obsolete:              {label:"Obsolete",                   bg:"#6b7280",text:"#fff",icon:"🚫"},
+};
+// ── Calibration Status — exactly 2 options (separate from functional) ───────
+const CAL_STATUS={
+  cal_required:     {label:"Calibration Required",    bg:"#f59e0b",text:"#fff",icon:"🔧"},
+  cal_not_required: {label:"Calibration Not Required",bg:"#94a3b8",text:"#fff",icon:"—"},
+};
+
+const CHART_PAL=["#1a8fa0","#22c55e","#ef4444","#f59e0b","#3b82f6","#a855f7","#f97316","#14b8a6","#ec4899","#84cc16"];
+const DEFAULT_CATEGORIES=["Vital Signs","Monitoring","Diagnostic Equipment","Imaging","Life Support","Laboratory","Surgical","Other"];
+const DEFAULT_LOCATIONS  =["OPD","Emergency Room","Radiology","ICU","Ward A","Ward B","Operating Theatre","Laboratory","Pharmacy","Other"];
+const getCategories=()=>STATE.settings.categories||DEFAULT_CATEGORIES;
+const getLocations =()=>STATE.settings.locations ||DEFAULT_LOCATIONS;
+
+/* ═══════════════════════════════════════════════════════
+   5. SEED DATA
+═══════════════════════════════════════════════════════ */
+const SEED=[
+  {id:"1", name:"Weighing Scale",     category:"Vital Signs",         serial_number:"20345",      location:"OPD",           status:"functional_not_in_use",calibration_status:"cal_required",    last_calibration:"2025-10-10",next_calibration:"2026-10-10",next_maintenance:"2026-06-10",notes:"",                     last_updated:"2026-04-07"},
+  {id:"2", name:"ECG Machine",        category:"Monitoring",          serial_number:"AD 89453",   location:"Emergency Room",status:"functional_in_use",    calibration_status:"cal_required",    last_calibration:"2025-08-07",next_calibration:"2026-08-07",next_maintenance:"2026-08-07",notes:"",                     last_updated:"2026-04-07"},
+  {id:"3", name:"Ultrasound Machine", category:"Diagnostic Equipment",serial_number:"US-2024-001",location:"Radiology",     status:"non_functional",       calibration_status:"cal_required",    last_calibration:"2025-05-29",next_calibration:"2026-05-29",next_maintenance:"2026-05-29",notes:"Probe malfunction",    last_updated:"2026-04-07"},
+  {id:"4", name:"Defibrillator",      category:"Life Support",        serial_number:"DF-4421",    location:"Emergency Room",status:"functional_in_use",    calibration_status:"cal_required",    last_calibration:"2025-04-15",next_calibration:"2026-04-15",next_maintenance:"2026-07-15",notes:"",                     last_updated:"2026-04-06"},
+  {id:"5", name:"Infusion Pump",      category:"Life Support",        serial_number:"IP-0093",    location:"ICU",           status:"functional_in_use",    calibration_status:"cal_required",    last_calibration:"2025-01-15",next_calibration:"2026-01-15",next_maintenance:"2026-07-20",notes:"Calibration overdue",  last_updated:"2026-04-05"},
+  {id:"6", name:"Pulse Oximeter",     category:"Vital Signs",         serial_number:"PO-7821",    location:"Ward A",        status:"functional_in_use",    calibration_status:"cal_not_required",last_calibration:null,        next_calibration:null,        next_maintenance:"2026-07-01",notes:"",                     last_updated:"2026-04-04"},
+  {id:"7", name:"Ventilator",         category:"Life Support",        serial_number:"VN-2019-3",  location:"ICU",           status:"needs_repair",         calibration_status:"cal_required",    last_calibration:"2025-06-14",next_calibration:"2026-06-14",next_maintenance:"2026-06-14",notes:"Fan bearing worn",     last_updated:"2026-04-03"},
+  {id:"8", name:"Blood Glucose Meter",category:"Laboratory",          serial_number:"BG-112",     location:"Laboratory",    status:"obsolete",             calibration_status:"cal_not_required",last_calibration:null,        next_calibration:null,        next_maintenance:"2026-05-01",notes:"Scheduled for disposal",last_updated:"2026-04-02"},
+  {id:"9", name:"Syringe Pump",       category:"Life Support",        serial_number:"SP-2023-7",  location:"ICU",           status:"functional_in_use",    calibration_status:"cal_required",    last_calibration:"2025-06-01",next_calibration:"2026-06-01",next_maintenance:"2026-09-01",notes:"",                     last_updated:"2026-04-01"},
+  {id:"10",name:"Patient Monitor",    category:"Monitoring",          serial_number:"PM-3301",    location:"Ward B",        status:"functional_not_in_use",calibration_status:"cal_required",    last_calibration:"2025-09-01",next_calibration:"2026-09-01",next_maintenance:"2026-09-01",notes:"On standby",           last_updated:"2026-03-30"},
+];
+
+/* ═══════════════════════════════════════════════════════
+   6. STATE  (defined AFTER all helper functions)
+═══════════════════════════════════════════════════════ */
+const DEFAULT_SETTINGS={
+  hospitalName:"Hospital",
+  reminders:true,
+  calThreshold:30,
+  categories:[...DEFAULT_CATEGORIES],
+  locations:[...DEFAULT_LOCATIONS],
+};
+let STATE={
+  tab:"home",
+  equipment:[],
+  loading:true,
+  adminSession:loadS("medinv_admin",null),
+  adminEmail:loadS("medinv_admin",null)?.user?.email||"",
+  settings:loadP("medinv_settings",DEFAULT_SETTINGS),
+  modal:null,       // null|"adminLogin"|"add"|equipObj|"bulkUpload"|"sqlView"
+  detail:null,      // equipObj shown in read-only detail
+  report:null,      // null|"status"|"maintenance"|"location"|"category"
+  bulkResult:null,  // {valid:[], errors:[]}
+  search:"",
+  showAll:false,
+  offline:false,
+  chartInst:null,
+  lastFetch:0,
+  pollTimer:null,
+};
+
+/* ═══════════════════════════════════════════════════════
+   7. HELPERS
+═══════════════════════════════════════════════════════ */
+const today   =()=>new Date().toISOString().slice(0,10);
+const uid     =()=>(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36));
+const daysDiff=d=>{if(!d)return 9999;try{return Math.ceil((new Date(d)-new Date(today()))/86400000);}catch{return 9999;}};
+const fmtDate =d=>{try{return d?new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";}catch{return d||"—";}};
+const isAdmin =()=>!!STATE.adminSession?.access_token;
+
+// Calibration status helpers — purely date-driven
+const isCalOverdue  =e=>e.calibration_status==="cal_required"&&!!e.next_calibration&&daysDiff(e.next_calibration)<0;
+const isCalUpcoming =e=>e.calibration_status==="cal_required"&&!!e.next_calibration&&(()=>{const d=daysDiff(e.next_calibration);return d>=0&&d<=30;})();
+
+// Stats
+function getStats(){
+  const eq=STATE.equipment;
+  return{
+    total:      eq.length,
+    functional: eq.filter(e=>["functional_in_use","functional_not_in_use"].includes(e.status)).length,
+    overdue:    eq.filter(e=>daysDiff(e.next_maintenance)<0).length,
+    calOverdue: eq.filter(isCalOverdue).length,
+    needsRepair:eq.filter(e=>e.status==="needs_repair").length,
+    obsolete:   eq.filter(e=>e.status==="obsolete").length,
+    overdueList:eq.filter(e=>daysDiff(e.next_maintenance)<0),
+    upcoming:   eq.filter(e=>{const d=daysDiff(e.next_maintenance);return d>=0&&d<=30;}),
+    calOverdueList: eq.filter(isCalOverdue),
+    calUpcomingList:eq.filter(isCalUpcoming),
+  };
+}
+
+// Functional status badge HTML
+function funcBadge(status){
+  const s=STATUS_CFG[status]||{label:status,bg:"#94a3b8",text:"#fff",icon:"?"};
+  return '<span class="badge" style="background:'+s.bg+';color:'+s.text+'">'+s.icon+' '+esc(s.label)+'</span>';
+}
+// Calibration status badge HTML (state-aware — shows overdue/upcoming/required/not-required)
+function calBadge(e){
+  if(!e||e.calibration_status!=="cal_required"){
+    return '<span class="badge" style="background:#f1f5f9;color:#94a3b8;font-size:10px;border:1px solid #e2e8f0">— Not Required</span>';
+  }
+  if(isCalOverdue(e)){
+    const d=Math.abs(daysDiff(e.next_calibration));
+    return '<span class="badge" style="background:#b45309;color:#fff;font-size:10px">⏰ Cal Overdue '+d+'d</span>';
+  }
+  if(isCalUpcoming(e)){
+    const d=daysDiff(e.next_calibration);
+    return '<span class="badge" style="background:#d97706;color:#fff;font-size:10px">🔧 Cal Due in '+d+'d</span>';
+  }
+  return '<span class="badge" style="background:#f59e0b;color:#fff;font-size:10px">🔧 Cal Required</span>';
+}
+
+/* ═══════════════════════════════════════════════════════
+   8. DATA LAYER
+═══════════════════════════════════════════════════════ */
+async function fetchEquipment(){
+  if(STATE.offline){STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.loading=false;STATE.lastFetch=Date.now();render();return;}
+  try{
+    const data=await sb.query("equipment","order=last_updated.desc&limit=500");
+    if(Array.isArray(data)){STATE.equipment=data;}else throw new Error("Bad response");
+  }catch(e){
+    console.warn("Supabase fetch failed, using seed:",e.message);
+    STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.offline=true;
+  }
+  STATE.loading=false;STATE.lastFetch=Date.now();render();
+}
+
+async function persistEquipment(item){
+  if(STATE.offline){
+    const idx=STATE.equipment.findIndex(e=>e.id===item.id);
+    idx>=0?(STATE.equipment[idx]=item):STATE.equipment.unshift(item);return item;
+  }
+  try{
+    if(item._isNew){const i={...item};delete i._isNew;const r=await sb.insert("equipment",i);return Array.isArray(r)?r[0]:r;}
+    const current=STATE.equipment.find(e=>e.id===item.id);
+    const knownDate=current?.last_updated||today();
+    const r=await sb.safeUpdate("equipment",item.id,item,knownDate);
+    if(Array.isArray(r)&&r.length===0){showToast("⚠️ Record changed by another user — refreshing…","error");await fetchEquipment();throw new Error("Conflict");}
+    return Array.isArray(r)?r[0]:r;
+  }catch(e){if(e.message!=="Conflict")showToast("Save failed: "+e.message,"error");throw e;}
+}
+
+async function removeEquipment(id){
+  if(!STATE.offline)try{await sb.remove("equipment",id);}catch(e){showToast("Delete failed: "+e.message,"error");throw e;}
+  STATE.equipment=STATE.equipment.filter(e=>e.id!==id);
+}
+
+async function bulkPersist(rows){
+  if(STATE.offline){
+    rows.forEach(r=>{if(!STATE.equipment.find(e=>e.serial_number.toLowerCase()===r.serial_number.toLowerCase()))STATE.equipment.unshift(r);});
+    return{inserted:rows.length,skipped:0};
+  }
+  try{
+    const r=await sb.bulkInsert("equipment",rows);
+    const inserted=Array.isArray(r)?r.length:0;
+    return{inserted,skipped:rows.length-inserted};
+  }catch(e){showToast("Bulk save failed: "+e.message,"error");throw e;}
+}
+
+/* ═══════════════════════════════════════════════════════
+   9. REAL-TIME POLLING (multi-user concurrency)
+═══════════════════════════════════════════════════════ */
+function startPolling(){
+  if(STATE.pollTimer)return;
+  STATE.pollTimer=setInterval(async()=>{
+    if(STATE.offline||STATE.loading||STATE.modal||STATE.detail)return;
+    try{
+      const since=STATE.lastFetch?new Date(STATE.lastFetch).toISOString().slice(0,10):new Date(0).toISOString().slice(0,10);
+      const r=await sb.query("equipment","last_updated=gte."+encodeURIComponent(since)+"&select=id");
+      if(Array.isArray(r)&&r.length>0){await fetchEquipment();showToast("🔄 Updated by another user","info");}
+    }catch{}
+  },30000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   10. AUTH
+═══════════════════════════════════════════════════════ */
+async function doLogin(email,pw){
+  if(!checkRate())return{ok:false,msg:"Too many attempts. Wait 1 minute."};
+  const e2=san.email(email);
+  if(!V.email(e2))return{ok:false,msg:"Enter a valid email address."};
+  if(!pw||pw.length<6||pw.length>200)return{ok:false,msg:"Password must be 6–200 characters."};
+  if(STATE.offline){
+    const sess={access_token:"demo_"+uid(),user:{email:e2}};
+    STATE.adminSession=sess;STATE.adminEmail=e2;saveS("medinv_admin",sess);return{ok:true};
+  }
+  try{
+    const r=await sb.signIn(e2,pw);
+    if(r?.access_token){STATE.adminSession=r;STATE.adminEmail=r.user?.email||e2;saveS("medinv_admin",r);return{ok:true};}
+    return{ok:false,msg:r?.error_description||r?.message||"Invalid credentials."};
+  }catch(e){return{ok:false,msg:"Login error: "+e.message};}
+}
+async function doLogout(){
+  if(STATE.adminSession?.access_token&&!STATE.offline)try{await sb.signOut(STATE.adminSession.access_token);}catch{}
+  STATE.adminSession=null;STATE.adminEmail="";sessionStorage.removeItem("medinv_admin");
+}
+
+/* ═══════════════════════════════════════════════════════
+   11. BULK UPLOAD
+═══════════════════════════════════════════════════════ */
+const BULK_COLS=["name","category","serial_number","location","status","next_maintenance","calibration_status","last_calibration","next_calibration","notes"];
+
+function downloadTemplate(){
+  if(typeof XLSX==="undefined"){showToast("Excel library not loaded","error");return;}
+  const cats=getCategories().join(" | ");
+  const locs=getLocations().join(" | ");
+  const statuses=Object.keys(STATUS_CFG).join(" | ");
+  const rows=[
+    BULK_COLS,
+    ["2–120 chars","One of: "+cats,"Alphanumeric/dash/dot · max 60","One of: "+locs,statuses,"YYYY-MM-DD","cal_required | cal_not_required","YYYY-MM-DD or blank","YYYY-MM-DD (req if cal_required)","Optional notes max 500"],
+    ["ECG Machine","Monitoring","ECG-001","Emergency Room","functional_in_use","2026-12-01","cal_required","2025-06-01","2026-06-01","Annual calibration"],
+    ["Weighing Scale","Vital Signs","WS-202","OPD","functional_not_in_use","2026-10-01","cal_not_required","","",""],
+    ["Defibrillator","Life Support","DF-303","ICU","needs_repair","2026-09-15","cal_required","2025-09-15","2026-09-15","Fan fault"],
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"]=[20,22,18,20,28,14,22,14,18,30].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Equipment_Import");
+  XLSX.writeFile(wb,"medequip-template-"+today()+".xlsx");
+  showToast("Template downloaded ✓","success");
+}
+
+function parseBulkFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:"array",cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:"yyyy-mm-dd"});
+      if(!raw||raw.length<2){showToast("File is empty or unreadable","error");return;}
+      let headerIdx=0;
+      for(let i=0;i<Math.min(5,raw.length);i++){if(String(raw[i][0]||"").toLowerCase().trim()==="name"){headerIdx=i;break;}}
+      const dataRows=raw.slice(headerIdx+1);
+      const cats=getCategories().map(c=>c.toLowerCase());
+      const locs=getLocations().map(l=>l.toLowerCase());
+      const valid=[],errors=[];
+      dataRows.forEach((row,ri)=>{
+        if(!row||row.every(c=>!String(c||"").trim()))return;
+        const rn=headerIdx+ri+2;
+        const nm=san.name(String(row[0]||""));
+        const cat=san.text(String(row[1]||""));
+        const ser=san.serial(String(row[2]||""));
+        const loc=san.text(String(row[3]||""));
+        const st=san.text(String(row[4]||"")).toLowerCase().replace(/ /g,"_");
+        const nm2=san.date(String(row[5]||""));
+        const cs=san.text(String(row[6]||"")).toLowerCase().replace(/ /g,"_");
+        const lc=san.date(String(row[7]||""));
+        const nc=san.date(String(row[8]||""));
+        const notes=san.notes(String(row[9]||""));
+        const errs=[];
+        if(!V.name(nm))errs.push("name: 2–120 chars required");
+        if(!cats.includes(cat.toLowerCase()))errs.push("category: '"+cat+"' not in list");
+        if(!V.serial(ser))errs.push("serial_number: invalid (max 60 alphanumeric)");
+        if(valid.find(v=>v.serial_number.toLowerCase()===ser.toLowerCase()))errs.push("serial_number: duplicate in this file");
+        if(STATE.equipment.find(eq=>eq.serial_number.toLowerCase()===ser.toLowerCase()))errs.push("serial_number: '"+ser+"' already exists");
+        if(!locs.includes(loc.toLowerCase()))errs.push("location: '"+loc+"' not in list");
+        if(!V.status(st))errs.push("status: must be one of "+Object.keys(STATUS_CFG).join("|"));
+        if(!V.date(nm2))errs.push("next_maintenance: YYYY-MM-DD required");
+        if(!V.calStatus(cs))errs.push("calibration_status: must be cal_required or cal_not_required");
+        if(cs==="cal_required"&&!V.date(nc))errs.push("next_calibration: YYYY-MM-DD required when cal_required");
+        if(lc&&!V.date(lc))errs.push("last_calibration: YYYY-MM-DD or blank");
+        if(errs.length){errors.push({row:rn,msg:errs.join(" · ")});}
+        else valid.push({id:uid(),name:nm,category:cat,serial_number:ser,location:loc,status:st,next_maintenance:nm2,calibration_status:cs,last_calibration:lc||null,next_calibration:cs==="cal_required"?(nc||null):null,notes,last_updated:today()});
+      });
+      STATE.bulkResult={valid,errors};render();
+    }catch(err){showToast("Failed to parse: "+err.message,"error");}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirmBulk(){
+  if(!STATE.bulkResult?.valid?.length)return;
+  const btn=document.getElementById("btn-confirm-bulk");
+  if(btn){btn.disabled=true;btn.textContent="Importing…";}
+  try{
+    const {inserted,skipped}=await bulkPersist(STATE.bulkResult.valid);
+    STATE.bulkResult=null;STATE.modal=null;
+    await fetchEquipment();
+    showToast("Imported "+inserted+" items"+(skipped?" · "+skipped+" skipped":""),"success");
+  }catch{if(btn){btn.disabled=false;btn.textContent="Import "+STATE.bulkResult.valid.length+" Items";}}
+}
+
+/* ═══════════════════════════════════════════════════════
+   12. EXPORTS
+═══════════════════════════════════════════════════════ */
+function exportCSV(){
+  const cols=["name","category","serial_number","location","status","next_maintenance","calibration_status","last_calibration","next_calibration","notes","last_updated"];
+  const head=["Name","Category","Serial No","Location","Functional Status","Next Maintenance","Calibration Status","Last Calibration","Next Calibration","Notes","Last Updated"];
+  const rows=STATE.equipment.map(e=>cols.map(c=>{
+    let v=String(e[c]||"");
+    if(c==="status")v=STATUS_CFG[e.status]?.label||v;
+    if(c==="calibration_status")v=CAL_STATUS[e.calibration_status]?.label||v;
+    return'"'+v.replace(/"/g,'""')+'"';
+  }).join(","));
+  dlBlob([head.join(","),...rows].join("\r\n"),"medequip-"+today()+".csv","text/csv;charset=utf-8;");
+}
+function exportExcel(){
+  const rows=STATE.equipment.map(e=>({
+    Name:e.name,Category:e.category,"Serial No":e.serial_number,Location:e.location,
+    "Functional Status":STATUS_CFG[e.status]?.label||e.status,
+    "Next Maintenance":e.next_maintenance,
+    "Calibration Status":CAL_STATUS[e.calibration_status]?.label||e.calibration_status||"",
+    "Last Calibration":e.last_calibration||"",
+    "Next Calibration":e.next_calibration||"",
+    Notes:e.notes||"","Last Updated":e.last_updated,
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws["!cols"]=[20,18,14,18,22,16,22,14,16,28,13].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Equipment");
+  XLSX.writeFile(wb,"medequip-"+today()+".xlsx");
+}
+async function exportPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+  doc.setFont("helvetica","bold");doc.setFontSize(14);doc.setTextColor(26,143,160);
+  doc.text(san.text(STATE.settings.hospitalName)+" — Medical Equipment Inventory",14,14);
+  doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(100,116,139);
+  doc.text("Generated: "+new Date().toLocaleString()+" | Total: "+STATE.equipment.length+" items",14,20);
+  doc.autoTable({
+    startY:24,
+    head:[["Name","Category","Serial","Location","Functional Status","Maint. Date","Cal. Status","Next Cal."]],
+    body:STATE.equipment.map(e=>[e.name,e.category,e.serial_number,e.location,STATUS_CFG[e.status]?.label||e.status,e.next_maintenance,CAL_STATUS[e.calibration_status]?.label||"—",e.next_calibration||"—"]),
+    styles:{font:"helvetica",fontSize:7.5,cellPadding:2.5},
+    headStyles:{fillColor:[26,143,160],fontStyle:"bold",fontSize:8},
+    alternateRowStyles:{fillColor:[245,248,250]},
+  });
+  doc.save("medequip-"+today()+".pdf");
+}
+function dlBlob(content,name,type){
+  const b=new Blob(["\uFEFF"+content],{type}),a=document.createElement("a");
+  a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();
+  document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+}
+
+/* ═══════════════════════════════════════════════════════
+   13. RENDER ENGINE
+═══════════════════════════════════════════════════════ */
+function render(){
+  const app=document.getElementById("app");if(!app)return;
+  document.getElementById("offline-bar").style.display=STATE.offline?"block":"none";
+  if(STATE.loading){
+    app.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;background:var(--bg)"><div style="font-size:56px;animation:pulse 1.5s infinite">🏥</div><div style="font-weight:900;color:var(--teal);font-size:18px">Loading MedEquip…</div><style>@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}</style></div>';
+    return;
+  }
+  const fns={home:renderHome,equipment:renderEquipment,maintenance:renderMaintenance,reports:renderReports,settings:renderSettings};
+  const screen=(fns[STATE.tab]||renderHome)();
+  const nav=renderNav();
+  const modal=STATE.modal?renderModal():"";
+  const detail=STATE.detail?renderDetail():"";
+  const report=STATE.report?renderReportDetail():"";
+  app.innerHTML=screen+nav+modal+detail+report;
+  bindEvents();
+  if(STATE.report)renderChart();
+}
+
+/* ─── NAVIGATION ─────────────────────────────────── */
+function renderNav(){
+  const tabs=[{id:"home",ico:"🏠",lbl:"Home"},{id:"equipment",ico:"📋",lbl:"Equipment"},{id:"maintenance",ico:"🔧",lbl:"Maint."},{id:"reports",ico:"📊",lbl:"Reports"},{id:"settings",ico:"⚙️",lbl:"Settings"}];
+  return '<nav class="bnav">'+tabs.map(t=>'<button class="nbtn '+(STATE.tab===t.id?"active":"")+'" data-nav="'+esc(t.id)+'" aria-label="'+esc(t.lbl)+'"><span class="ico">'+t.ico+'</span><span class="lbl">'+esc(t.lbl)+'</span></button>').join("")+'</nav>';
+}
+
+/* ─── HOME ───────────────────────────────────────── */
+function renderHome(){
+  const s=getStats();
+  const tiles=[
+    {ico:"📊",n:s.total,       lbl:"Total Equipment",  bar:"#3b82f6",nav:"equipment"},
+    {ico:"✅",n:s.functional,  lbl:"Functional",        bar:"#22c55e",nav:"equipment"},
+    {ico:"⚠️",n:s.overdue,    lbl:"Maint. Overdue",   bar:"#ef4444",nav:"maintenance"},
+    {ico:"⏰",n:s.calOverdue,  lbl:"Cal. Overdue",     bar:"#b45309",nav:"maintenance"},
+  ];
+  const recent=[...STATE.equipment].sort((a,b)=>new Date(b.last_updated)-new Date(a.last_updated)).slice(0,3);
+  return '<div class="screen">'+
+    '<div class="page-hero"><h1>🏥 '+esc(STATE.settings.hospitalName)+'</h1><p>Medical Equipment Management</p>'+(STATE.offline?'<div style="margin-top:8px;background:rgba(255,255,255,.2);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;display:inline-block">⚠️ Demo Mode</div>':'')+'</div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:16px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+tiles.map(t=>'<div class="tile" data-nav="'+esc(t.nav)+'"><div style="font-size:26px;margin-bottom:8px">'+t.ico+'</div><div style="font-size:32px;font-weight:900;color:var(--text);line-height:1">'+t.n+'</div><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--sub);text-transform:uppercase;margin-top:6px">'+esc(t.lbl)+'</div><div class="tile-bar" style="background:'+t.bar+'"></div></div>').join("")+'</div>'+
+    '<div><p class="sec-lbl" style="margin-bottom:10px">Quick Actions</p>'+
+    '<div style="display:flex;flex-direction:column;gap:8px">'+
+    '<button class="btn btn-teal" data-nav="equipment" style="justify-content:flex-start">📋 View All Equipment</button>'+
+    '<button class="btn btn-outline" data-nav="maintenance" style="justify-content:flex-start">🔧 Maintenance Tracker</button>'+
+    '<button class="btn btn-outline" data-nav="reports" style="justify-content:flex-start">📊 Reports & Analytics</button>'+
+    '</div></div>'+
+    '<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><p class="sec-lbl">Recent Updates</p><button class="lnk" data-nav="equipment">See All →</button></div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px">'+recent.map(eqCardHTML).join("")+'</div></div></div>'+
+    '<style>.lnk{background:none;border:none;color:var(--teal);font-weight:700;font-size:13px;cursor:pointer;font-family:Nunito,sans-serif}</style></div>';
+}
+
+/* ─── EQUIPMENT CARD ─────────────────────────────── */
+function eqCardHTML(e){
+  const diff=daysDiff(e.next_maintenance);
+  const sc=STATUS_CFG[e.status]||{label:e.status,bg:"#94a3b8",text:"#fff",icon:"?"};
+  const maintPill=diff<0
+    ?'<span style="font-size:11px;font-weight:700;color:var(--red);background:var(--red-lt);padding:3px 8px;border-radius:99px;white-space:nowrap">⚠️ '+Math.abs(diff)+'d OD</span>'
+    :diff<=30
+      ?'<span style="font-size:11px;font-weight:700;color:var(--amber);background:var(--amber-lt);padding:3px 8px;border-radius:99px;white-space:nowrap">🕐 '+diff+'d left</span>'
+      :'<span style="font-size:11px;color:var(--sub);white-space:nowrap">'+fmtDate(e.next_maintenance)+'</span>';
+  return '<div class="eq-card" data-eq-id="'+esc(e.id)+'" style="border-left-color:'+sc.bg+'">'+
+    '<div style="font-weight:800;font-size:15px;color:var(--text);line-height:1.3;margin-bottom:10px">'+esc(e.name)+'</div>'+
+    // ── TWO CLEARLY LABELLED STATUS ROWS ──────────────────────────────────
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
+      '<div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px">'+
+        '<span class="status-label">⚙️ Functional Status</span>'+
+        funcBadge(e.status)+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px">'+
+        '<span class="status-label">⏰ Calibration Status</span>'+
+        calBadge(e)+
+      '</div>'+
+    '</div>'+
+    // ── META ───────────────────────────────────────────────────────────────
+    '<div style="font-size:12px;color:var(--sub);margin-bottom:8px">'+esc(e.category)+' · SN: '+esc(e.serial_number)+'</div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center">'+
+      '<span style="font-size:13px;color:var(--sub)">📍 '+esc(e.location)+'</span>'+maintPill+
+    '</div>'+
+    '<div style="margin-top:8px;font-size:11px;color:'+(isAdmin()?"var(--teal)":"var(--sub)")+';font-weight:600">'+
+      (isAdmin()?"✏️ Tap to edit":"Tap to view details →")+
+    '</div>'+
+  '</div>';
+}
+
+/* ─── EQUIPMENT TAB ──────────────────────────────── */
+function renderEquipment(){
+  const q=STATE.search.trim().toLowerCase();
+  const filt=q?STATE.equipment.filter(e=>[e.name,e.category,e.location,e.serial_number].join(" ").toLowerCase().includes(q)):STATE.equipment;
+  const display=STATE.showAll?filt:filt.slice(0,6);
+  return '<div class="screen">'+
+    '<div class="page-hero"><h1>📋 Equipment</h1><p>'+STATE.equipment.length+' items registered</p></div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">'+
+    (isAdmin()
+      ?'<button class="btn btn-teal" id="btn-add-eq">➕ Add New Equipment</button>'
+      :'<div class="ro-notice"><span style="font-size:20px">👁</span><div><div style="font-weight:700;color:var(--text);font-size:13px">Read-Only View</div><div style="font-size:12px;margin-top:1px">Tap any item for details. <button id="btn-admin-login-eq" style="background:none;border:none;color:var(--teal);font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;font-size:12px;padding:0">Admin login</button> to add/edit.</div></div></div>')+
+    '<div class="search-wrap"><input class="inp" id="eq-search" type="search" placeholder="Search name, category, location…" value="'+esc(STATE.search)+'" autocomplete="off" maxlength="100"/></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center"><p class="sec-lbl">'+( STATE.showAll?"All":"Recent")+" ("+filt.length+")</p><button class=\"lnk\" id=\"btn-view-all\">"+(STATE.showAll?"Collapse ↑":"View All →")+'</button></div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px">'+
+    (display.length?display.map(eqCardHTML).join(""):'<p style="color:var(--sub);text-align:center;padding:28px">No equipment found.</p>')+
+    '</div>'+
+    (!STATE.showAll&&filt.length>6?'<button class="btn btn-ghost" id="btn-load-all">Load all '+filt.length+' items</button>':'')+
+    '</div>'+
+    '<style>.lnk{background:none;border:none;color:var(--teal);font-weight:700;font-size:13px;cursor:pointer;font-family:Nunito,sans-serif}</style></div>';
+}
+
+/* ─── EQUIPMENT DETAIL (read-only) ──────────────── */
+function renderDetail(){
+  const e=STATE.detail;if(!e)return"";
+  const sc=STATUS_CFG[e.status]||{label:e.status,bg:"#94a3b8",text:"#fff",icon:"?"};
+  const diff=daysDiff(e.next_maintenance);
+  const maintSt=diff<0?{txt:"Overdue by "+Math.abs(diff)+"d",color:"var(--red)",bg:"var(--red-lt)"}:diff<=30?{txt:"Due in "+diff+"d",color:"var(--amber)",bg:"var(--amber-lt)"}:{txt:"On schedule",color:"var(--green-dk)",bg:"var(--green-lt)"};
+  const calRequired=e.calibration_status==="cal_required";
+  const calDiff=calRequired&&e.next_calibration?daysDiff(e.next_calibration):null;
+  const calSt=calDiff===null?null:calDiff<0?{txt:"Overdue by "+Math.abs(calDiff)+"d",color:"#b45309",bg:"#fef3c7"}:calDiff<=30?{txt:"Due in "+calDiff+"d",color:"#d97706",bg:"#fef3c7"}:{txt:"On schedule",color:"var(--green-dk)",bg:"var(--green-lt)"};
+
+  const infoRows=[
+    {ico:"🏷️",bg:"#eff6ff",label:"Category",          value:e.category},
+    {ico:"🔢",bg:"#faf5ff",label:"Serial / Asset No.", value:e.serial_number},
+    {ico:"📍",bg:"#fff5f5",label:"Location",           value:e.location},
+    {ico:"📅",bg:"#fffbeb",label:"Next Maintenance",   value:fmtDate(e.next_maintenance)},
+    {ico:"🕐",bg:maintSt.bg,label:"Maintenance Status",value:maintSt.txt,vc:maintSt.color},
+    {ico:"⏰",bg:calRequired?"#fef3c7":"#f8fafc",label:"Calibration Status",
+      value:calRequired?"Calibration Required":"Calibration Not Required",vc:calRequired?"#b45309":"var(--sub)"},
+    ...(calRequired&&e.last_calibration?[{ico:"🔬",bg:"#f0fdf4",label:"Last Calibration",value:fmtDate(e.last_calibration)}]:[]),
+    ...(calRequired&&e.next_calibration?[{ico:"📆",bg:calSt?.bg||"#f8fafc",label:"Next Calibration",value:fmtDate(e.next_calibration),vc:calSt?.color}]:[]),
+    ...(calSt?[{ico:"📊",bg:calSt.bg,label:"Calibration Alert",value:calSt.txt,vc:calSt.color}]:[]),
+    {ico:"📝",bg:"#f8fafc",label:"Notes",value:e.notes||"—"},
+    {ico:"🔄",bg:"#f0fdf4",label:"Last Updated",value:fmtDate(e.last_updated)},
+  ];
+
+  return '<div class="fullscreen" role="dialog" aria-modal="true">'+
+    '<div class="fs-header"><button class="fs-back" id="btn-close-detail">← Back</button><span style="font-weight:800;font-size:16px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.name)+'</span></div>'+
+    // Hero with BOTH statuses
+    '<div style="background:linear-gradient(135deg,'+sc.bg+' 0%,'+sc.bg+'cc 100%);padding:22px 18px;display:flex;flex-direction:column;gap:12px">'+
+      '<div style="display:flex;align-items:center;gap:14px">'+
+        '<div style="width:50px;height:50px;border-radius:14px;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">'+sc.icon+'</div>'+
+        '<h2 style="font-size:18px;font-weight:900;color:#fff;line-height:1.2">'+esc(e.name)+'</h2>'+
+      '</div>'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">'+
+        '<div style="display:flex;flex-direction:column;gap:3px">'+
+          '<span style="font-size:9px;font-weight:800;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.8px">⚙️ Functional Status</span>'+
+          '<span class="badge" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35)">'+sc.icon+' '+esc(sc.label)+'</span>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;gap:3px">'+
+          '<span style="font-size:9px;font-weight:800;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.8px">⏰ Calibration Status</span>'+
+          (calRequired
+            ?(calSt&&calSt.txt.includes("Overdue")?'<span class="badge" style="background:#b45309;color:#fff">⏰ '+esc(calSt.txt)+'</span>'
+              :calSt&&calSt.txt.includes("Due in")?'<span class="badge" style="background:#d97706;color:#fff">🔧 '+esc(calSt.txt)+'</span>'
+              :'<span class="badge" style="background:rgba(245,158,11,.85);color:#fff">🔧 Cal Required</span>')
+            :'<span class="badge" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.85)">— Not Required</span>')+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:16px">'+
+      '<div class="card" style="padding:16px">'+
+        infoRows.map(r=>'<div class="info-row"><div class="info-icon" style="background:'+r.bg+'">'+r.ico+'</div><div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">'+esc(r.label)+'</div><div style="font-size:14px;font-weight:700;color:'+(r.vc||"var(--text)")+'">'+esc(String(r.value))+'</div></div></div>').join("")+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        (isAdmin()
+          ?'<button class="btn btn-teal" id="btn-detail-edit">✏️ Edit Equipment</button><button class="btn btn-outline" id="btn-detail-delete" style="color:var(--red);border-color:var(--red)">🗑 Delete Equipment</button>'
+          :'<div class="ro-notice"><span>🔐</span><span>Login as admin to edit this equipment.</span></div>')+
+        '<button class="btn btn-outline" id="btn-close-detail-2">Close</button>'+
+      '</div>'+
+    '</div></div>';
+}
+
+/* ─── MAINTENANCE TAB ────────────────────────────── */
+function renderMaintenance(){
+  const s=getStats();const admin=isAdmin();
+  function maintCard(e,isOverdue){
+    const diff=isOverdue?Math.abs(daysDiff(e.next_maintenance)):daysDiff(e.next_maintenance);
+    const sc=STATUS_CFG[e.status]||{label:e.status,bg:"#94a3b8",text:"#fff",icon:"?"};
+    const cls=isOverdue?"mcard-red":"mcard-amb";
+    const pill=isOverdue
+      ?'<span style="font-size:11px;font-weight:800;color:var(--red);background:var(--red-lt);padding:3px 8px;border-radius:99px">⚠️ '+diff+'d overdue</span>'
+      :'<span style="font-size:11px;font-weight:800;color:var(--amber);background:var(--amber-lt);padding:3px 8px;border-radius:99px">🕐 '+diff+'d left</span>';
+    const btnColor=isOverdue?"btn-red":"btn-amber";
+    return '<div class="'+cls+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px"><span style="font-weight:800;color:var(--text);font-size:15px">'+esc(e.name)+'</span>'+pill+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+
+        '<div style="display:flex;flex-direction:column;gap:2px">'+
+          '<span class="status-label">⚙️ Functional</span>'+
+          '<span class="badge" style="background:'+sc.bg+';color:'+sc.text+';font-size:10px">'+sc.icon+' '+esc(sc.label)+'</span>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;gap:2px">'+
+          '<span class="status-label">⏰ Calibration</span>'+
+          calBadge(e)+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--sub);margin-bottom:8px">📍 '+esc(e.location)+' · '+(isOverdue?"Was: ":"Due: ")+fmtDate(e.next_maintenance)+'</div>'+
+      (admin
+        ?'<button class="btn '+btnColor+' btn-mark-done" data-id="'+esc(e.id)+'" style="font-size:13px;padding:10px">✓ Mark Maintenance Done (+90 days)</button>'
+        :'<div class="ro-notice">🔒 Admin required to update</div>')+
+    '</div>';
+  }
+  function calCard(e,isOverdue){
+    const diff=isOverdue?Math.abs(daysDiff(e.next_calibration)):daysDiff(e.next_calibration);
+    const sc=STATUS_CFG[e.status]||{label:e.status,bg:"#94a3b8",text:"#fff",icon:"?"};
+    const cls=isOverdue?"mcard-red":"mcard-amb";
+    const pill=isOverdue
+      ?'<span style="font-size:11px;font-weight:800;color:#b45309;background:#fef3c7;padding:3px 8px;border-radius:99px">⏰ '+diff+'d overdue</span>'
+      :'<span style="font-size:11px;font-weight:800;color:#d97706;background:#fef3c7;padding:3px 8px;border-radius:99px">🔧 '+diff+'d left</span>';
+    return '<div class="'+cls+'" style="border-color:'+(isOverdue?"#b45309":"#d97706")+';background:'+(isOverdue?"#fefce8":"#fffbeb")+'">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px"><span style="font-weight:800;color:var(--text);font-size:15px">'+esc(e.name)+'</span>'+pill+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+
+        '<div style="display:flex;flex-direction:column;gap:2px">'+
+          '<span class="status-label">⚙️ Functional</span>'+
+          '<span class="badge" style="background:'+sc.bg+';color:'+sc.text+';font-size:10px">'+sc.icon+' '+esc(sc.label)+'</span>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;gap:2px">'+
+          '<span class="status-label">⏰ Calibration</span>'+
+          calBadge(e)+
+        '</div>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--sub);margin-bottom:8px">📍 '+esc(e.location)+' · Last cal: '+fmtDate(e.last_calibration)+' · Due: '+fmtDate(e.next_calibration)+'</div>'+
+      (admin
+        ?'<button class="btn btn-mark-cal-done" data-id="'+esc(e.id)+'" style="font-size:13px;padding:10px;background:'+(isOverdue?"#b45309":"#d97706")+';color:#fff;border:none;border-radius:12px;cursor:pointer;font-family:Nunito,sans-serif;font-weight:700;width:100%;display:flex;align-items:center;justify-content:center;gap:6px">⏰ Mark Calibration Done (+1 year)</button>'
+        :'<div class="ro-notice">🔒 Admin required to update</div>')+
+    '</div>';
+  }
+
+  const overdueHTML=s.overdueList.length?s.overdueList.map(e=>maintCard(e,true)).join(""):'<div class="mcard-grn">🎉 No maintenance overdue!</div>';
+  const upcomingHTML=s.upcoming.length?s.upcoming.map(e=>maintCard(e,false)).join(""):'<p style="color:var(--sub);font-size:14px;padding:6px 0">No maintenance due in 30 days.</p>';
+  const calOverdueHTML=s.calOverdueList.length?s.calOverdueList.map(e=>calCard(e,true)).join(""):'<div class="mcard-grn">✅ No calibration overdue!</div>';
+  const calUpcomingHTML=s.calUpcomingList.length?s.calUpcomingList.map(e=>calCard(e,false)).join(""):'<p style="color:var(--sub);font-size:14px;padding:6px 0">No calibrations due in 30 days.</p>';
+
+  return '<div class="screen">'+
+    '<div class="page-hero"><h1>🔧 Maintenance & Calibration</h1><p>'+s.overdueList.length+' maint. overdue · '+s.calOverdueList.length+' cal. overdue</p></div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">'+
+    (!admin?'<div class="ro-notice" style="border-color:var(--teal-mid)"><span style="font-size:18px">🔐</span><div><div style="font-weight:700;color:var(--text);font-size:13px">Read-Only</div><div style="font-size:12px">Login as admin to mark done.</div></div></div>':"")+
+    '<div class="card" style="padding:16px">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><div style="width:32px;height:32px;border-radius:10px;background:var(--red-lt);display:flex;align-items:center;justify-content:center;font-size:16px">🔧</div><p style="font-size:14px;font-weight:900;color:var(--text)">Maintenance</p></div>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:var(--red)"></div><p class="sec-lbl" style="color:var(--red)">Overdue ('+s.overdueList.length+')</p></div>'+
+      '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">'+overdueHTML+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></div><p class="sec-lbl" style="color:var(--amber)">Upcoming 30d ('+s.upcoming.length+')</p></div>'+
+      '<div style="display:flex;flex-direction:column;gap:10px">'+upcomingHTML+'</div>'+
+    '</div>'+
+    '<div class="card" style="padding:16px">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><div style="width:32px;height:32px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:16px">⏰</div><p style="font-size:14px;font-weight:900;color:var(--text)">Calibration</p></div>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:#b45309"></div><p class="sec-lbl" style="color:#b45309">Overdue ('+s.calOverdueList.length+')</p></div>'+
+      '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">'+calOverdueHTML+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:#d97706"></div><p class="sec-lbl" style="color:#d97706">Upcoming 30d ('+s.calUpcomingList.length+')</p></div>'+
+      '<div style="display:flex;flex-direction:column;gap:10px">'+calUpcomingHTML+'</div>'+
+    '</div>'+
+    '</div></div>';
+}
+
+/* ─── REPORTS TAB ────────────────────────────────── */
+function renderReports(){
+  const s=getStats();
+  const types=[
+    {id:"status",   ico:"📊",title:"Equipment Status",     desc:"Functional & calibration breakdown", accent:"var(--blue)"},
+    {id:"maintenance",ico:"🔧",title:"Maintenance Schedule",desc:"Overdue and upcoming maintenance",   accent:"var(--red)"},
+    {id:"location", ico:"📍",title:"By Location",           desc:"Distribution across locations",      accent:"var(--teal)"},
+    {id:"category", ico:"🏷️",title:"By Equipment Type",     desc:"Distribution by category",           accent:"var(--amber)"},
+  ];
+  return '<div class="screen">'+
+    '<div class="page-hero"><h1>📊 Reports</h1><p>Analytics and inventory reports</p></div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:12px">'+
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">'+
+    [{label:"Total",n:s.total,c:"var(--blue)"},{label:"Functional",n:s.functional,c:"var(--green)"},{label:"Maint OD",n:s.overdue,c:"var(--red)"},{label:"Cal OD",n:s.calOverdue,c:"#b45309"}].map(x=>'<div class="card" style="padding:10px 6px;text-align:center"><div style="font-size:18px;font-weight:900;color:'+x.c+'">'+x.n+'</div><div style="font-size:9px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.4px;margin-top:2px;line-height:1.2">'+x.label+'</div></div>').join("")+
+    '</div>'+
+    '<p class="sec-lbl" style="margin-top:4px">Select Report Type</p>'+
+    types.map(r=>'<div class="report-row" data-report="'+esc(r.id)+'" style="border-left:4px solid '+r.accent+'"><div style="width:42px;height:42px;border-radius:12px;background:var(--teal-lt);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'+r.ico+'</div><div style="flex:1"><div style="font-weight:800;font-size:15px;color:var(--text)">'+esc(r.title)+'</div><div style="font-size:12px;color:var(--sub);margin-top:2px">'+esc(r.desc)+'</div></div><span style="color:var(--teal);font-size:20px;font-weight:700">›</span></div>').join("")+
+    '</div></div>';
+}
+
+/* ─── REPORT DETAIL ──────────────────────────────── */
+function renderReportDetail(){
+  const TITLES={status:"Equipment Status",maintenance:"Maintenance Schedule",location:"By Location",category:"By Type"};
+  const eq=STATE.equipment,total=eq.length||1;
+  let rows=[],thead=["Item","Count","%"];
+  if(STATE.report==="status"){
+    const c={};eq.forEach(e=>{c[e.status]=(c[e.status]||0)+1;});
+    rows=Object.entries(c).map(([k,v])=>[STATUS_CFG[k]?.label||k,v,((v/total)*100).toFixed(1)+"%"]);
+    thead=["Functional Status","Count","%"];
+  }else if(STATE.report==="maintenance"){
+    thead=["Equipment","Due Date","Days"];
+    rows=[...eq].sort((a,b)=>new Date(a.next_maintenance)-new Date(b.next_maintenance)).map(e=>{const d=daysDiff(e.next_maintenance);return[e.name,fmtDate(e.next_maintenance),d<0?"⚠️ "+Math.abs(d)+"d OD":"✓ "+d+"d"];});
+  }else if(STATE.report==="location"){
+    const c={};eq.forEach(e=>{c[e.location]=(c[e.location]||0)+1;});
+    rows=Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,v,((v/total)*100).toFixed(1)+"%"]);
+    thead=["Location","Count","%"];
+  }else{
+    const c={};eq.forEach(e=>{c[e.category]=(c[e.category]||0)+1;});
+    rows=Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,v,((v/total)*100).toFixed(1)+"%"]);
+    thead=["Category","Count","%"];
+  }
+  const isMaint=STATE.report==="maintenance";
+  const tRows=rows.map((r,ri)=>'<tr style="background:'+(ri%2===0?"#fff":"#f9fbfc")+'">'
+    +r.map((c,ci)=>'<td style="padding:11px 14px;font-size:13px;color:'+(ci===0?"var(--text)":"var(--sub)")+';font-weight:'+(ci===0?700:500)+';text-align:'+(ci===0?"left":"center")+';border-bottom:1px solid var(--border)">'+esc(String(c))+'</td>').join("")
+  +'</tr>').join("");
+
+  return '<div class="fullscreen" role="dialog" aria-modal="true">'+
+    '<div class="fs-header"><button class="fs-back" id="btn-close-report">← Back</button><span style="font-weight:900;font-size:16px;color:var(--text)">'+esc(TITLES[STATE.report])+'</span></div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:14px;padding-bottom:32px">'+
+    '<div class="card" style="padding:18px">'+
+      '<h3 style="font-weight:900;font-size:15px;color:var(--text);margin-bottom:4px">Distribution Chart</h3>'+
+      '<p style="font-size:11px;color:var(--sub);margin-bottom:16px">'+(isMaint?"Timeline view":"Tap a segment for details")+'</p>'+
+      '<div style="position:relative;height:240px;width:100%"><canvas id="report-chart"></canvas></div>'+
+      '<div id="chart-legend" style="margin-top:16px;display:flex;flex-direction:column;gap:2px"></div>'+
+    '</div>'+
+    '<div class="card" style="padding:0;overflow:hidden">'+
+      '<div style="padding:14px 16px;border-bottom:1px solid var(--border)"><h3 style="font-weight:900;font-size:15px;color:var(--text)">Data Table</h3></div>'+
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:260px">'+
+        '<thead><tr style="background:var(--teal-lt)">'+thead.map((h,i)=>'<th style="padding:10px 14px;font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.6px;text-align:'+(i===0?"left":"center")+';border-bottom:2px solid var(--border)">'+esc(h)+'</th>').join("")+'</tr></thead>'+
+        '<tbody>'+tRows+'</tbody>'+
+        (!isMaint?'<tfoot><tr style="background:var(--teal-lt)"><td style="padding:10px 14px;font-size:12px;font-weight:800;color:var(--teal)">TOTAL</td><td style="padding:10px 14px;font-size:12px;font-weight:800;color:var(--teal);text-align:center">'+total+'</td><td style="padding:10px 14px;font-size:12px;font-weight:800;color:var(--teal);text-align:center">100%</td></tr></tfoot>':"")+
+      '</table></div>'+
+    '</div>'+
+    '<div class="card" style="padding:14px">'+
+      '<p class="sec-lbl" style="margin-bottom:10px">Export Report</p>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
+        '<button class="btn" id="exp-csv" style="background:#f0f9ff;color:#0369a1;font-size:12px;padding:10px 6px;border-radius:10px;flex-direction:column;gap:2px"><span style="font-size:20px">📄</span><span>CSV</span></button>'+
+        '<button class="btn" id="exp-xlsx" style="background:#f0fdf4;color:#166534;font-size:12px;padding:10px 6px;border-radius:10px;flex-direction:column;gap:2px"><span style="font-size:20px">📊</span><span>Excel</span></button>'+
+        '<button class="btn" id="exp-pdf" style="background:#fff5f5;color:#991b1b;font-size:12px;padding:10px 6px;border-radius:10px;flex-direction:column;gap:2px"><span style="font-size:20px">📕</span><span>PDF</span></button>'+
+      '</div>'+
+    '</div>'+
+    '</div></div>';
+}
+
+/* ─── CHART ──────────────────────────────────────── */
+function renderChart(){
+  const canvas=document.getElementById("report-chart");if(!canvas)return;
+  const legEl=document.getElementById("chart-legend");
+  if(typeof Chart==="undefined"){if(legEl)legEl.innerHTML='<p style="text-align:center;color:var(--sub);font-size:13px">⚠️ Chart library not loaded. Check your connection.</p>';return;}
+  if(STATE.chartInst){STATE.chartInst.destroy();STATE.chartInst=null;}
+  const eq=STATE.equipment,total=eq.length||1;
+  let labels=[],data=[],colors=[];
+  const isMaint=STATE.report==="maintenance";
+  if(STATE.report==="status"){
+    const c={};eq.forEach(e=>{c[e.status]=(c[e.status]||0)+1;});
+    Object.entries(c).forEach(([k,v],i)=>{labels.push(STATUS_CFG[k]?.label||k);data.push(v);colors.push(STATUS_CFG[k]?.bg||CHART_PAL[i%CHART_PAL.length]);});
+  }else if(STATE.report==="location"){
+    const c={};eq.forEach(e=>{c[e.location]=(c[e.location]||0)+1;});
+    Object.entries(c).sort((a,b)=>b[1]-a[1]).forEach(([k,v],i)=>{labels.push(k);data.push(v);colors.push(CHART_PAL[i%CHART_PAL.length]);});
+  }else if(STATE.report==="category"){
+    const c={};eq.forEach(e=>{c[e.category]=(c[e.category]||0)+1;});
+    Object.entries(c).sort((a,b)=>b[1]-a[1]).forEach(([k,v],i)=>{labels.push(k);data.push(v);colors.push(CHART_PAL[i%CHART_PAL.length]);});
+  }else{
+    const ov=eq.filter(e=>daysDiff(e.next_maintenance)<0).length,up=eq.filter(e=>{const d=daysDiff(e.next_maintenance);return d>=0&&d<=30;}).length,ok=eq.length-ov-up;
+    labels=["Overdue","Upcoming 30d","On Schedule"];data=[ov,up,ok];colors=["#ef4444","#f59e0b","#22c55e"];
+  }
+  const pct=v=>((v/total)*100).toFixed(1)+"%";
+  STATE.chartInst=new Chart(canvas,{
+    type:isMaint?"bar":"doughnut",
+    data:{labels,datasets:[{data,backgroundColor:isMaint?colors.map(c=>c+"cc"):colors,borderColor:"#fff",borderWidth:isMaint?0:3,hoverOffset:isMaint?0:10,borderRadius:isMaint?8:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:isMaint?undefined:"58%",
+      plugins:{legend:{display:false},tooltip:{backgroundColor:"rgba(15,23,42,.9)",titleFont:{family:"Nunito",size:13,weight:"800"},bodyFont:{family:"Nunito",size:12},padding:12,cornerRadius:10,
+        callbacks:{label:ctx=>" "+(isMaint?ctx.raw:ctx.parsed)+" item"+((isMaint?ctx.raw:ctx.parsed)!==1?"s":"")+" — "+pct(isMaint?ctx.raw:ctx.parsed)}}},
+      scales:isMaint?{y:{beginAtZero:true,ticks:{font:{family:"Nunito",size:11},stepSize:1},grid:{color:"rgba(0,0,0,.05)"}},x:{ticks:{font:{family:"Nunito",size:11}},grid:{display:false}}}:undefined},
+  });
+  if(legEl){
+    legEl.innerHTML='<div style="display:flex;justify-content:space-between;padding:0 10px 6px;border-bottom:1px solid var(--border);margin-bottom:4px"><span style="font-size:9px;font-weight:800;color:var(--sub);text-transform:uppercase">Category</span><div style="display:flex;gap:16px"><span style="font-size:9px;font-weight:800;color:var(--sub);text-transform:uppercase">Count</span><span style="font-size:9px;font-weight:800;color:var(--sub);text-transform:uppercase">Share</span></div></div>'+
+    labels.map((lbl,i)=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:'+(i%2===0?"#f8fafc":"#fff")+'"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0"><div style="width:12px;height:12px;border-radius:3px;background:'+colors[i]+';flex-shrink:0"></div><span style="font-size:12.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(lbl)+'</span></div><div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><span style="font-size:14px;font-weight:900;color:var(--text)">'+data[i]+'</span><span style="font-size:11px;font-weight:700;color:'+colors[i]+';background:'+colors[i]+'1a;padding:3px 8px;border-radius:99px">'+pct(data[i])+'</span></div></div>').join("");
+  }
+}
+
+/* ─── SETTINGS TAB ───────────────────────────────── */
+function renderSettings(){
+  if(!isAdmin()){
+    return '<div class="screen"><div class="page-hero"><h1>⚙️ Settings</h1><p>Admin access required</p></div>'+
+      '<div style="padding:16px"><div class="card" style="padding:28px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px">'+
+        '<div style="width:72px;height:72px;border-radius:20px;background:var(--teal-lt);display:flex;align-items:center;justify-content:center;font-size:36px">🔐</div>'+
+        '<h2 style="font-weight:900;color:var(--text);font-size:18px">Admin Access Required</h2>'+
+        '<p style="color:var(--sub);font-size:13px;line-height:1.6">Settings are restricted to authorised administrators.</p>'+
+        '<button class="btn btn-teal" id="btn-open-settings-login" style="max-width:220px">Login as Admin</button>'+
+      '</div></div></div>';
+  }
+  const s=STATE.settings;
+  const cats=s.categories||DEFAULT_CATEGORIES;
+  const locs=s.locations||DEFAULT_LOCATIONS;
+  return '<div class="screen"><div class="page-hero"><h1>⚙️ Settings</h1><p>Admin: '+esc(STATE.adminEmail)+'</p></div>'+
+    '<div style="padding:16px;display:flex;flex-direction:column;gap:12px">'+
+
+    // Session card
+    '<div style="background:var(--green-lt);border:1.5px solid var(--green);border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">'+
+      '<div><div style="font-size:13px;font-weight:700;color:var(--green-dk)">🟢 Admin Session Active</div><div style="font-size:12px;color:var(--sub);margin-top:2px">'+esc(STATE.adminEmail)+'</div></div>'+
+      '<button id="btn-logout" class="btn" style="width:auto;padding:8px 14px;background:var(--red-lt);color:var(--red);font-size:13px;border-radius:10px">Logout</button>'+
+    '</div>'+
+
+    // Hospital
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">'+
+      '<p class="sec-lbl">🏥 Hospital</p>'+
+      '<label style="font-size:12px;font-weight:700;color:var(--sub)">Hospital Name</label>'+
+      '<input class="inp" id="inp-hospital-name" value="'+esc(s.hospitalName)+'" maxlength="80"/>'+
+      '<button class="btn btn-teal" id="btn-save-hospital" style="padding:10px">💾 Save Name</button>'+
+    '</div>'+
+
+    // Notifications
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">'+
+      '<p class="sec-lbl">🔔 Notifications</p>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center">'+
+        '<div><div style="font-weight:700;color:var(--text);font-size:14px">Maintenance Reminders</div><div style="font-size:11px;color:var(--sub);margin-top:2px">Alert when maintenance is due</div></div>'+
+        '<div class="toggle" id="toggle-reminders" style="background:'+(s.reminders?"var(--teal)":"var(--border)")+'"><div class="toggle-thumb" style="left:'+(s.reminders?"24px":"3px")+'"></div></div>'+
+      '</div>'+
+      '<label style="font-size:12px;font-weight:700;color:var(--sub)">Calibration Reminder Threshold (days)</label>'+
+      '<input class="inp" id="inp-cal-threshold" type="number" value="'+s.calThreshold+'" min="1" max="365"/>'+
+      '<button class="btn btn-teal" id="btn-save-notif" style="padding:10px">💾 Save Preferences</button>'+
+    '</div>'+
+
+    // Dropdown list manager
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:14px">'+
+      '<p class="sec-lbl">📝 Dropdown List Manager</p>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.6">Edit categories and locations shown in the Add/Edit Equipment form.</p>'+
+      // Categories
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        '<div style="font-size:12px;font-weight:800;color:var(--text)">🏷️ Equipment Categories</div>'+
+        '<div id="cat-list" style="display:flex;flex-direction:column;gap:6px">'+
+          cats.map((c,i)=>'<div style="display:flex;gap:8px;align-items:center"><input class="inp cat-item" data-idx="'+i+'" value="'+esc(c)+'" style="flex:1;padding:9px 11px;font-size:13px" maxlength="60"/><button class="btn-del-cat" data-idx="'+i+'" style="background:var(--red-lt);border:none;color:var(--red);border-radius:9px;width:34px;height:34px;cursor:pointer;font-size:16px;flex-shrink:0">🗑</button></div>').join("")+
+        '</div>'+
+        '<button class="btn btn-ghost" id="btn-add-cat" style="padding:8px;font-size:13px">+ Add Category</button>'+
+        '<button class="btn btn-teal" id="btn-save-cats" style="padding:9px;font-size:13px">💾 Save Categories</button>'+
+      '</div>'+
+      '<div style="height:1px;background:var(--border)"></div>'+
+      // Locations
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        '<div style="font-size:12px;font-weight:800;color:var(--text)">📍 Locations / Units</div>'+
+        '<div id="loc-list" style="display:flex;flex-direction:column;gap:6px">'+
+          locs.map((l,i)=>'<div style="display:flex;gap:8px;align-items:center"><input class="inp loc-item" data-idx="'+i+'" value="'+esc(l)+'" style="flex:1;padding:9px 11px;font-size:13px" maxlength="60"/><button class="btn-del-loc" data-idx="'+i+'" style="background:var(--red-lt);border:none;color:var(--red);border-radius:9px;width:34px;height:34px;cursor:pointer;font-size:16px;flex-shrink:0">🗑</button></div>').join("")+
+        '</div>'+
+        '<button class="btn btn-ghost" id="btn-add-loc" style="padding:8px;font-size:13px">+ Add Location</button>'+
+        '<button class="btn btn-teal" id="btn-save-locs" style="padding:9px;font-size:13px">💾 Save Locations</button>'+
+      '</div>'+
+    '</div>'+
+
+    // Bulk upload
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">'+
+      '<p class="sec-lbl">📥 Bulk Equipment Upload</p>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.6">Upload multiple equipment items from an Excel file. Download the template, fill it in, then upload — items are validated row-by-row before import.</p>'+
+      '<button class="btn btn-teal" id="btn-open-bulk" style="padding:11px">📥 Open Bulk Upload</button>'+
+    '</div>'+
+
+    // Export
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:9px">'+
+      '<p class="sec-lbl">📤 Export All Data</p>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
+        '<button class="btn" id="exp-csv-s" style="background:#f0f9ff;color:#0369a1;font-size:12px;padding:12px 6px;border-radius:10px;flex-direction:column;gap:2px"><span style="font-size:22px">📄</span><span>CSV</span></button>'+
+        '<button class="btn" id="exp-xlsx-s" style="background:#f0fdf4;color:#166534;font-size:12px;padding:12px 6px;border-radius:10px;flex-direction:column;gap:2px"><span style="font-size:22px">📊</span><span>Excel</span></button>'+
+        '<button class="btn" id="exp-pdf-s" style="background:#fff5f5;color:#991b1b;font-size:12px;padding:12px 6px;border-radius:10px;flex-direction:column;gap:2px"><span style="font-size:22px">📕</span><span>PDF</span></button>'+
+      '</div>'+
+    '</div>'+
+
+    // DB setup
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">'+
+      '<p class="sec-lbl">🗄️ Database Setup</p>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.6">Run the setup SQL <strong>once</strong> in your Supabase SQL Editor. All future app actions update the database automatically.</p>'+
+      '<button class="btn btn-ghost" id="btn-show-sql" style="padding:9px">📋 View Setup SQL</button>'+
+    '</div>'+
+
+    // Danger
+    '<div class="card" style="padding:16px">'+
+      '<p class="sec-lbl" style="margin-bottom:10px">⚠️ Danger Zone</p>'+
+      '<button class="btn btn-outline" id="btn-reset-data" style="color:var(--red);border-color:var(--red)">🔄 Reset to Sample Data</button>'+
+    '</div>'+
+
+    // App info
+    '<div class="card" style="padding:16px;text-align:center">'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.8">MedEquip Inventory · v1.0.0<br/>'+(STATE.offline?"⚠️ Offline/Demo Mode":"🟢 Connected to Supabase")+'<br/><span style="font-size:10px;opacity:.7">© '+new Date().getFullYear()+' — Authorised hospital use only</span></p>'+
+    '</div>'+
+  '</div></div>';
+}
+
+/* ─── MODAL (Login + Equipment form + Bulk + SQL) ─ */
+function renderModal(){
+  /* Admin login */
+  if(STATE.modal==="adminLogin"){
+    return '<div class="overlay" role="dialog" aria-modal="true">'+
+      '<div class="mbox"><div style="display:flex;justify-content:space-between;align-items:center">'+
+        '<h2 style="font-weight:900;font-size:20px;color:var(--text)">🔐 Admin Login</h2>'+
+        '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button>'+
+      '</div>'+
+      '<p style="font-size:13px;color:var(--sub)">Enter your administrator credentials.</p>'+
+      (STATE.offline?'<div style="background:#fff3cd;border-radius:10px;padding:10px 14px;font-size:12px;color:#856404;font-weight:600">ℹ️ Demo mode: any email + password (6+ chars) accepted.</div>':"")+
+      '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub)">Email</label><input class="inp" id="inp-email" type="email" placeholder="admin@hospital.com" autocomplete="username" maxlength="120"/></div>'+
+      '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub)">Password</label><input class="inp" id="inp-password" type="password" placeholder="••••••••" autocomplete="current-password" maxlength="200"/></div>'+
+      '<div id="login-error" style="display:none;background:var(--red-lt);color:var(--red);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600" role="alert"></div>'+
+      '<button class="btn btn-teal" id="btn-do-login">Login</button></div></div>';
+  }
+
+  /* SQL viewer */
+  if(STATE.modal==="sqlView"){
+    const sql=`-- Run ONCE in Supabase SQL Editor:
+
+CREATE TABLE IF NOT EXISTS equipment (
+  id                 TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name               TEXT NOT NULL CHECK(length(name)>=2),
+  category           TEXT NOT NULL,
+  serial_number      TEXT NOT NULL,
+  location           TEXT NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'functional_in_use'
+                       CHECK(status IN ('functional_in_use','functional_not_in_use',
+                                        'non_functional','needs_repair','obsolete')),
+  next_maintenance   DATE NOT NULL,
+  calibration_status TEXT NOT NULL DEFAULT 'cal_not_required'
+                       CHECK(calibration_status IN ('cal_required','cal_not_required')),
+  last_calibration   DATE,
+  next_calibration   DATE,
+  notes              TEXT DEFAULT '',
+  last_updated       DATE NOT NULL DEFAULT CURRENT_DATE
+);
+
+-- Upgrade existing table safely:
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS calibration_status TEXT DEFAULT 'cal_not_required';
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS last_calibration DATE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS next_calibration DATE;
+
+-- Row Level Security:
+ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public read"  ON equipment FOR SELECT USING (true);
+CREATE POLICY "Admin insert" ON equipment FOR INSERT WITH CHECK (auth.role()='authenticated');
+CREATE POLICY "Admin update" ON equipment FOR UPDATE USING (auth.role()='authenticated');
+CREATE POLICY "Admin delete" ON equipment FOR DELETE USING (auth.role()='authenticated');`;
+    return '<div class="overlay" role="dialog" aria-modal="true">'+
+      '<div class="mbox" style="max-height:88vh"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-weight:900;font-size:18px;color:var(--text)">🗄️ Supabase Setup SQL</h2>'+
+        '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button></div>'+
+      '<div style="background:#1e293b;border-radius:12px;padding:14px;overflow-x:auto"><pre id="sql-content" style="font-size:10px;color:#a5f3fc;font-family:monospace;line-height:1.7;white-space:pre-wrap;margin:0">'+esc(sql)+'</pre></div>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.6">📌 Run this <strong>once</strong> only. After that all app actions update the database automatically.</p>'+
+      '<button class="btn btn-teal" id="btn-copy-sql">📋 Copy SQL</button></div></div>';
+  }
+
+  /* Bulk upload */
+  if(STATE.modal==="bulkUpload"){
+    const br=STATE.bulkResult;
+    return '<div class="overlay" role="dialog" aria-modal="true">'+
+      '<div class="mbox" style="max-height:92vh"><div style="display:flex;justify-content:space-between;align-items:center">'+
+        '<h2 style="font-weight:900;font-size:20px;color:var(--text)">📥 Bulk Upload</h2>'+
+        '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button>'+
+      '</div>'+
+      // Step 1
+      '<div style="background:var(--teal-lt);border:1.5px solid var(--teal-mid);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px">'+
+        '<div style="font-size:13px;font-weight:800;color:var(--teal)">Step 1 — Download Template</div>'+
+        '<p style="font-size:12px;color:var(--sub);line-height:1.5">Download the Excel template, fill in your data, then upload below.</p>'+
+        '<button class="btn btn-teal" id="btn-dl-template" style="padding:10px;font-size:13px">📥 Download Excel Template</button>'+
+      '</div>'+
+      // Column format
+      '<div style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px">'+
+        '<div style="font-size:11px;font-weight:800;color:var(--text);margin-bottom:4px">📋 Column Format (10 columns)</div>'+
+        [
+          ["A — name","2–120 chars · Required"],
+          ["B — category","Exact match from your category list · Required"],
+          ["C — serial_number","Alphanumeric, - _ . / · Max 60 · Required"],
+          ["D — location","Exact match from your location list · Required"],
+          ["E — status","functional_in_use | functional_not_in_use | non_functional | needs_repair | obsolete · Required"],
+          ["F — next_maintenance","YYYY-MM-DD · Required"],
+          ["G — calibration_status","cal_required | cal_not_required · Required"],
+          ["H — last_calibration","YYYY-MM-DD or blank · Optional"],
+          ["I — next_calibration","YYYY-MM-DD · Required if cal_required"],
+          ["J — notes","Free text · Max 500 · Optional"],
+        ].map(([col,rule])=>'<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)"><span style="font-size:10px;font-weight:800;color:var(--teal);min-width:52px;flex-shrink:0">'+esc(col.split("—")[0].trim())+'</span><div><div style="font-size:11px;font-weight:700;color:var(--text)">'+esc((col.split("—")[1]||"").trim())+'</div><div style="font-size:10px;color:var(--sub)">'+esc(rule)+'</div></div></div>').join("")+
+      '</div>'+
+      // Step 2
+      '<div style="background:#fff;border:2px dashed var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer" id="bulk-drop-zone">'+
+        '<div style="font-size:32px">📊</div>'+
+        '<div style="font-weight:700;color:var(--text);font-size:14px">Step 2 — Upload Filled Excel</div>'+
+        '<div style="font-size:12px;color:var(--sub)">Tap to choose file or drag & drop</div>'+
+        '<input type="file" id="bulk-file-input" accept=".xlsx,.xls,.csv" style="display:none"/>'+
+        '<button class="btn btn-ghost" style="padding:9px 18px;font-size:13px;width:auto" id="btn-choose-file">Choose File</button>'+
+      '</div>'+
+      // Result
+      (br?'<div style="background:'+(br.errors.length?"var(--red-lt)":"var(--green-lt)")+';border:1.5px solid '+(br.errors.length?"var(--red)":"var(--green)")+';border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px">'+
+        '<div style="font-weight:800;font-size:14px;color:'+(br.errors.length?"var(--red)":"var(--green-dk)")+'">'+(br.errors.length?"⚠️ Validation Errors":"✅ Ready to Import")+'</div>'+
+        '<div style="font-size:13px;color:var(--text)"><strong>'+br.valid.length+'</strong> valid rows · <strong style="color:var(--red)">'+br.errors.length+'</strong> errors</div>'+
+        (br.errors.length?'<div style="max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">'+br.errors.map(e=>'<div style="font-size:11px;color:var(--red);background:#fff;border-radius:6px;padding:5px 8px">Row '+e.row+': '+esc(e.msg)+'</div>').join("")+'</div>':"")+
+        (br.valid.length&&!br.errors.length?'<button class="btn btn-teal" id="btn-confirm-bulk" style="padding:11px;margin-top:4px">⬆️ Import '+br.valid.length+' Equipment Items</button>':"")+
+        (br.errors.length?'<p style="font-size:11px;color:var(--sub)">Fix the errors in your Excel file and re-upload.</p>':"")+
+      '</div>':"")+'</div></div>';
+  }
+
+  /* Equipment form — admin only */
+  if(!isAdmin())return"";
+  const isEdit=STATE.modal&&STATE.modal!=="add";
+  const item=isEdit?STATE.modal:{};
+  const calReq=(item.calibration_status||"cal_not_required")==="cal_required";
+  return '<div class="overlay" role="dialog" aria-modal="true">'+
+    '<div class="mbox"><div style="display:flex;justify-content:space-between;align-items:center">'+
+      '<h2 style="font-weight:900;font-size:20px;color:var(--text)">'+(isEdit?"✏️ Edit":"➕ Add")+' Equipment</h2>'+
+      '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button>'+
+    '</div>'+
+    fField("Equipment Name","inp-name","text",item.name||"",true)+
+    '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Category <span style="color:var(--red)">*</span></label>'+
+      '<select class="inp" id="inp-category">'+getCategories().map(c=>'<option value="'+esc(c)+'" '+(item.category===c?"selected":"")+'>'+esc(c)+'</option>').join("")+'</select></div>'+
+    fField("Serial / Asset Number","inp-serial","text",item.serial_number||"",true)+
+    '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Location <span style="color:var(--red)">*</span></label>'+
+      '<select class="inp" id="inp-location">'+getLocations().map(l=>'<option value="'+esc(l)+'" '+(item.location===l?"selected":"")+'>'+esc(l)+'</option>').join("")+'</select></div>'+
+    fField("Next Maintenance Date","inp-maint","date",item.next_maintenance||today(),true)+
+
+    // ── STATUS SECTION — clearly two separate fields ──────────────────────
+    '<div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:12px">'+
+      '<div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.8px">📋 Status Fields</div>'+
+
+      // Field 1: Functional Status
+      '<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">'+
+        '<div style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.8px">⚙️ 1 of 2 — Functional Status</div>'+
+        '<p style="font-size:11px;color:var(--sub)">Is the equipment physically working?</p>'+
+        '<select class="inp" id="inp-status">'+Object.entries(STATUS_CFG).map(([k,v])=>'<option value="'+esc(k)+'" '+(item.status===k?"selected":"")+'>'+v.icon+' '+esc(v.label)+'</option>').join("")+'</select>'+
+        '<span class="field-err" id="err-inp-status" role="alert"></span>'+
+      '</div>'+
+
+      // Field 2: Calibration Status
+      '<div style="background:#fff;border:1.5px solid '+(calReq?"var(--amber)":"var(--border)")+';border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">'+
+        '<div style="font-size:10px;font-weight:800;color:#b45309;text-transform:uppercase;letter-spacing:.8px">⏰ 2 of 2 — Calibration Status</div>'+
+        '<p style="font-size:11px;color:var(--sub)">Does this equipment require periodic calibration?</p>'+
+        '<select class="inp" id="inp-cal-status" onchange="toggleCalDates(this.value)">'+Object.entries(CAL_STATUS).map(([k,v])=>'<option value="'+esc(k)+'" '+((item.calibration_status||"cal_not_required")===k?"selected":"")+'>'+v.icon+' '+esc(v.label)+'</option>').join("")+'</select>'+
+        '<span class="field-err" id="err-inp-cal-status" role="alert"></span>'+
+      '</div>'+
+    '</div>'+
+
+    // Calibration dates — enabled only when cal_required
+    '<div id="cal-dates-wrap" style="transition:opacity .2s;'+(calReq?"":"opacity:.35;pointer-events:none")+'">'+
+      '<div style="background:'+(calReq?"#fef3c7":"#f8fafc")+';border:1.5px solid '+(calReq?"var(--amber)":"var(--border)")+';border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px">'+
+        '<div style="font-size:11px;font-weight:700;color:'+(calReq?"#92400e":"var(--sub)");')">'+
+        '<span>'+(calReq?"🔧 Fill in calibration dates:":"ℹ️ Select Calibration Required above to enable")+'</span></div>'+
+        fField("Last Calibration Date","inp-last-cal","date",item.last_calibration||"",false)+
+        fField("Next Calibration Date","inp-next-cal","date",item.next_calibration||"",calReq)+
+      '</div>'+
+    '</div>'+
+
+    '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Notes</label>'+
+      '<textarea class="inp" id="inp-notes" rows="3" style="resize:vertical" maxlength="500">'+esc(item.notes||"")+'</textarea></div>'+
+    '<div id="form-err" style="display:none;background:var(--red-lt);color:var(--red);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600" role="alert"></div>'+
+    '<button class="btn btn-teal" id="btn-save-eq" style="margin-top:4px">💾 '+(isEdit?"Update":"Add")+' Equipment</button>'+
+    (isEdit?'<button class="btn btn-outline" id="btn-delete-eq" style="color:var(--red);border-color:var(--red)">🗑 Delete Equipment</button>':"")+
+  '</div></div>';
+}
+
+function fField(label,id,type,value,req){
+  return '<div style="display:flex;flex-direction:column;gap:4px">'+
+    '<label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px" for="'+esc(id)+'">'+esc(label)+(req?' <span style="color:var(--red)">*</span>':"")+'</label>'+
+    '<input class="inp" id="'+esc(id)+'" type="'+esc(type)+'" value="'+esc(value)+'" placeholder="'+esc(label)+'" maxlength="'+(type==="date"?10:120)+'"/>'+
+    '<span class="field-err" id="err-'+esc(id)+'" role="alert"></span></div>';
+}
+
+function toggleCalDates(val){
+  const wrap=document.getElementById("cal-dates-wrap");
+  const inner=wrap?.querySelector("div");
+  const hint=inner?.querySelector("span");
+  const req=val==="cal_required";
+  if(wrap){wrap.style.opacity=req?"1":".35";wrap.style.pointerEvents=req?"auto":"none";}
+  if(inner){inner.style.background=req?"#fef3c7":"#f8fafc";inner.style.borderColor=req?"var(--amber)":"var(--border)";}
+  if(hint){hint.textContent=req?"🔧 Fill in calibration dates:":"ℹ️ Select Calibration Required above to enable";}
+}
+
+/* ═══════════════════════════════════════════════════════
+   14. EVENT BINDING
+═══════════════════════════════════════════════════════ */
+function bindEvents(){
+  function on(id,fn){const el=document.getElementById(id);if(el)el.addEventListener("click",fn);}
+  function showFE(id,msg){const el=document.getElementById(id);if(el)el.classList.add("err");const e=document.getElementById("err-"+id);if(e){e.textContent=msg;e.style.display="block";}}
+  function clearFE(){document.querySelectorAll(".inp.err").forEach(el=>el.classList.remove("err"));document.querySelectorAll(".field-err").forEach(el=>{el.style.display="none";el.textContent="";});}
+
+  // Nav
+  document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",()=>{STATE.tab=el.dataset.nav;STATE.search="";STATE.showAll=false;STATE.detail=null;STATE.report=null;render();}));
+
+  // Equipment cards
+  document.querySelectorAll("[data-eq-id]").forEach(el=>el.addEventListener("click",()=>{
+    const item=STATE.equipment.find(e=>e.id===el.dataset.eqId);if(!item)return;
+    if(isAdmin()){STATE.modal={...item};render();}
+    else{STATE.detail=item;render();}
+  }));
+
+  // Reports
+  document.querySelectorAll("[data-report]").forEach(el=>el.addEventListener("click",()=>{STATE.report=el.dataset.report;render();}));
+
+  // Detail view
+  on("btn-close-detail",()=>{STATE.detail=null;render();});
+  on("btn-close-detail-2",()=>{STATE.detail=null;render();});
+  on("btn-detail-edit",()=>{if(STATE.detail&&isAdmin()){STATE.modal={...STATE.detail};STATE.detail=null;render();}});
+  on("btn-detail-delete",async()=>{
+    if(!STATE.detail||!isAdmin())return;
+    if(!confirm("Delete \""+san.text(STATE.detail.name)+"\"? This cannot be undone."))return;
+    try{await removeEquipment(STATE.detail.id);STATE.detail=null;render();showToast("Equipment deleted","info");}catch{}
+  });
+
+  // Equipment tab
+  on("btn-add-eq",()=>{if(!isAdmin())return;STATE.modal="add";render();});
+  on("btn-admin-login-eq",()=>{STATE.modal="adminLogin";render();});
+  on("btn-view-all",()=>{STATE.showAll=!STATE.showAll;render();});
+  on("btn-load-all",()=>{STATE.showAll=true;render();});
+  const sq=document.getElementById("eq-search");
+  if(sq)sq.addEventListener("input",e=>{STATE.search=e.target.value;render();});
+
+  // Maintenance mark done
+  document.querySelectorAll(".btn-mark-done").forEach(btn=>btn.addEventListener("click",async e=>{
+    e.stopPropagation();if(!isAdmin()){showToast("Admin required","error");return;}
+    const item=STATE.equipment.find(x=>x.id===btn.dataset.id);if(!item)return;
+    btn.disabled=true;btn.textContent="Saving…";
+    try{
+      const nd=new Date(Date.now()+90*86400000).toISOString().slice(0,10);
+      await persistEquipment({...item,next_maintenance:nd,last_updated:today()});
+      showToast(item.name+" ✓ Done","success");await fetchEquipment();
+    }catch{btn.disabled=false;btn.textContent="✓ Mark Maintenance Done (+90 days)";}
+  }));
+
+  // Calibration mark done
+  document.querySelectorAll(".btn-mark-cal-done").forEach(btn=>btn.addEventListener("click",async e=>{
+    e.stopPropagation();if(!isAdmin()){showToast("Admin required","error");return;}
+    const item=STATE.equipment.find(x=>x.id===btn.dataset.id);if(!item)return;
+    btn.disabled=true;btn.textContent="Saving…";
+    try{
+      const newLastCal=today();
+      const newNextCal=new Date(Date.now()+365*86400000).toISOString().slice(0,10);
+      await persistEquipment({...item,last_calibration:newLastCal,next_calibration:newNextCal,calibration_status:"cal_required",last_updated:today()});
+      showToast(item.name+" calibration recorded ✓","success");await fetchEquipment();
+    }catch{btn.disabled=false;btn.textContent="⏰ Mark Calibration Done (+1 year)";}
+  }));
+
+  // Report
+  on("btn-close-report",()=>{STATE.report=null;render();});
+  on("exp-csv",exportCSV);on("exp-xlsx",exportExcel);on("exp-pdf",exportPDF);
+
+  // Settings
+  on("btn-open-settings-login",()=>{STATE.modal="adminLogin";render();});
+  on("btn-logout",async()=>{await doLogout();showToast("Logged out","info");render();});
+  on("toggle-reminders",()=>{STATE.settings.reminders=!STATE.settings.reminders;saveP("medinv_settings",STATE.settings);render();});
+  on("btn-save-hospital",()=>{
+    const v=san.name(document.getElementById("inp-hospital-name")?.value||"");
+    if(!v||v.length<1){showToast("Invalid hospital name","error");return;}
+    STATE.settings.hospitalName=v;saveP("medinv_settings",STATE.settings);showToast("Hospital name saved ✓","success");render();
+  });
+  on("btn-save-notif",()=>{
+    const t=san.num(document.getElementById("inp-cal-threshold")?.value||"30");
+    if(t<1||t>365){showToast("Threshold must be 1–365","error");return;}
+    STATE.settings.calThreshold=t;saveP("medinv_settings",STATE.settings);showToast("Preferences saved ✓","success");
+  });
+  on("btn-add-cat",()=>{
+    const list=document.getElementById("cat-list");if(!list)return;
+    const idx=list.children.length;
+    const row=document.createElement("div");row.style.cssText="display:flex;gap:8px;align-items:center";
+    row.innerHTML='<input class="inp cat-item" value="" style="flex:1;padding:9px 11px;font-size:13px" maxlength="60" placeholder="New category…"/><button style="background:var(--red-lt);border:none;color:var(--red);border-radius:9px;width:34px;height:34px;cursor:pointer;font-size:16px;flex-shrink:0">🗑</button>';
+    row.querySelector("button").addEventListener("click",()=>row.remove());
+    list.appendChild(row);row.querySelector("input").focus();
+  });
+  on("btn-add-loc",()=>{
+    const list=document.getElementById("loc-list");if(!list)return;
+    const row=document.createElement("div");row.style.cssText="display:flex;gap:8px;align-items:center";
+    row.innerHTML='<input class="inp loc-item" value="" style="flex:1;padding:9px 11px;font-size:13px" maxlength="60" placeholder="New location…"/><button style="background:var(--red-lt);border:none;color:var(--red);border-radius:9px;width:34px;height:34px;cursor:pointer;font-size:16px;flex-shrink:0">🗑</button>';
+    row.querySelector("button").addEventListener("click",()=>row.remove());
+    list.appendChild(row);row.querySelector("input").focus();
+  });
+  document.querySelectorAll(".btn-del-cat").forEach(btn=>btn.addEventListener("click",function(){this.closest("div").remove();}));
+  document.querySelectorAll(".btn-del-loc").forEach(btn=>btn.addEventListener("click",function(){this.closest("div").remove();}));
+  on("btn-save-cats",()=>{
+    const cats=[...document.querySelectorAll(".cat-item")].map(i=>san.text(i.value)).filter(v=>v.length>0);
+    if(cats.length<1){showToast("At least 1 category required","error");return;}
+    STATE.settings.categories=cats;saveP("medinv_settings",STATE.settings);showToast(cats.length+" categories saved ✓","success");render();
+  });
+  on("btn-save-locs",()=>{
+    const locs=[...document.querySelectorAll(".loc-item")].map(i=>san.text(i.value)).filter(v=>v.length>0);
+    if(locs.length<1){showToast("At least 1 location required","error");return;}
+    STATE.settings.locations=locs;saveP("medinv_settings",STATE.settings);showToast(locs.length+" locations saved ✓","success");render();
+  });
+  on("btn-open-bulk",()=>{if(!isAdmin()){showToast("Admin required","error");return;}STATE.bulkResult=null;STATE.modal="bulkUpload";render();});
+  on("btn-dl-template",downloadTemplate);
+  on("btn-confirm-bulk",confirmBulk);
+  on("btn-choose-file",()=>{const fi=document.getElementById("bulk-file-input");if(fi)fi.click();});
+  const bulkInput=document.getElementById("bulk-file-input");
+  if(bulkInput)bulkInput.addEventListener("change",e=>{const f=e.target.files[0];if(f)parseBulkFile(f);e.target.value="";});
+  const dropZone=document.getElementById("bulk-drop-zone");
+  if(dropZone){
+    dropZone.addEventListener("dragover",e=>{e.preventDefault();dropZone.style.borderColor="var(--teal)";dropZone.style.background="var(--teal-lt)";});
+    dropZone.addEventListener("dragleave",()=>{dropZone.style.borderColor="var(--border)";dropZone.style.background="#fff";});
+    dropZone.addEventListener("drop",e=>{e.preventDefault();dropZone.style.borderColor="var(--border)";dropZone.style.background="#fff";const f=e.dataTransfer.files[0];if(f)parseBulkFile(f);else showToast("Please drop an Excel or CSV file","error");});
+  }
+  on("exp-csv-s",exportCSV);on("exp-xlsx-s",exportExcel);on("exp-pdf-s",exportPDF);
+  on("btn-reset-data",()=>{if(confirm("Reset to sample data? All changes will be lost.")){STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.settings.categories=[...DEFAULT_CATEGORIES];STATE.settings.locations=[...DEFAULT_LOCATIONS];saveP("medinv_settings",STATE.settings);showToast("Reset to sample data","info");render();}});
+  on("btn-show-sql",()=>{STATE.modal="sqlView";render();});
+  on("btn-copy-sql",async()=>{const el=document.getElementById("sql-content");if(el)try{await navigator.clipboard.writeText(el.textContent);showToast("SQL copied ✓","success");}catch{showToast("Copy failed — select text manually","error");}});
+
+  // Modal common
+  on("btn-close-modal",()=>{STATE.modal=null;render();});
+  on("btn-do-login",handleLogin);
+  on("btn-save-eq",handleSaveEq);
+  on("btn-delete-eq",handleDeleteEq);
+  document.querySelector(".overlay")?.addEventListener("click",function(e){if(e.target===this){STATE.modal=null;render();}});
+  document.getElementById("inp-password")?.addEventListener("keydown",e=>{if(e.key==="Enter")handleLogin();});
+
+  // Wire cal status toggle
+  const calSel=document.getElementById("inp-cal-status");
+  if(calSel)calSel.addEventListener("change",()=>toggleCalDates(calSel.value));
+}
+
+async function handleLogin(){
+  const email=san.email(document.getElementById("inp-email")?.value||"");
+  const pass=san.text(document.getElementById("inp-password")?.value||"");
+  const errEl=document.getElementById("login-error");
+  if(errEl)errEl.style.display="none";
+  const btn=document.getElementById("btn-do-login");
+  if(btn){btn.disabled=true;btn.textContent="Verifying…";}
+  const res=await doLogin(email,pass);
+  if(res.ok){STATE.modal=null;render();showToast("Welcome, "+esc(STATE.adminEmail)+" ✓","success");}
+  else{if(errEl){errEl.textContent=res.msg;errEl.style.display="block";}if(btn){btn.disabled=false;btn.textContent="Login";}}
+}
+
+async function handleSaveEq(){
+  if(!isAdmin())return;
+  function showFE(id,msg){const el=document.getElementById(id);if(el)el.classList.add("err");const e=document.getElementById("err-"+id);if(e){e.textContent=msg;e.style.display="block";}}
+  function clearFE(){document.querySelectorAll(".inp.err").forEach(el=>el.classList.remove("err"));document.querySelectorAll(".field-err").forEach(el=>{el.style.display="none";el.textContent="";});}
+  clearFE();
+  const name   =san.name(document.getElementById("inp-name")?.value||"");
+  const serial =san.serial(document.getElementById("inp-serial")?.value||"");
+  const maint  =san.date(document.getElementById("inp-maint")?.value||"");
+  const rawCat =san.text(document.getElementById("inp-category")?.value||"");
+  const rawLoc =san.text(document.getElementById("inp-location")?.value||"");
+  const rawStat=san.text(document.getElementById("inp-status")?.value||"");
+  const calStatVal=san.text(document.getElementById("inp-cal-status")?.value||"cal_not_required");
+  const lastCal=san.date(document.getElementById("inp-last-cal")?.value||"")||null;
+  const nextCal=san.date(document.getElementById("inp-next-cal")?.value||"")||null;
+  const notes  =san.notes(document.getElementById("inp-notes")?.value||"");
+  let ok=true;
+  if(!V.name(name))                  {showFE("inp-name","Name must be 2–120 characters.");ok=false;}
+  if(!V.serial(serial))              {showFE("inp-serial","Use 1–60 alphanumeric / - _ . / chars.");ok=false;}
+  if(!V.date(maint))                 {showFE("inp-maint","Select a valid date (YYYY-MM-DD).");ok=false;}
+  if(!V.status(rawStat))             {showFE("inp-status","Invalid functional status.");ok=false;}
+  if(!V.calStatus(calStatVal))       {showFE("inp-cal-status","Invalid calibration status.");ok=false;}
+  if(!getCategories().includes(rawCat)){showFE("inp-category","Select a valid category.");ok=false;}
+  if(!getLocations().includes(rawLoc)) {showFE("inp-location","Select a valid location.");ok=false;}
+  if(calStatVal==="cal_required"){
+    if(lastCal&&!V.date(lastCal))    {showFE("inp-last-cal","Enter a valid date (YYYY-MM-DD).");ok=false;}
+    if(!nextCal)                     {showFE("inp-next-cal","Next Calibration Date is required.");ok=false;}
+    else if(!V.date(nextCal))        {showFE("inp-next-cal","Enter a valid date (YYYY-MM-DD).");ok=false;}
+  }
+  if(!ok)return;
+  const isEdit=STATE.modal&&STATE.modal!=="add";
+  const item={id:isEdit?STATE.modal.id:uid(),name,category:rawCat,serial_number:serial,location:rawLoc,status:rawStat,next_maintenance:maint,calibration_status:calStatVal,last_calibration:calStatVal==="cal_required"?lastCal:null,next_calibration:calStatVal==="cal_required"?nextCal:null,notes,last_updated:today(),...(isEdit?{}:{_isNew:true})};
+  const btn=document.getElementById("btn-save-eq");
+  if(btn){btn.disabled=true;btn.textContent="Saving…";}
+  try{await persistEquipment(item);STATE.modal=null;await fetchEquipment();showToast(isEdit?"Equipment updated ✓":"Equipment added ✓","success");}
+  catch{if(btn){btn.disabled=false;btn.textContent="💾 "+(isEdit?"Update":"Add")+" Equipment";}}
+}
+
+async function handleDeleteEq(){
+  if(!isAdmin()||STATE.modal==="add"||!STATE.modal)return;
+  if(!confirm("Delete \""+san.text(STATE.modal.name)+"\"? This cannot be undone."))return;
+  try{await removeEquipment(STATE.modal.id);STATE.modal=null;render();showToast("Equipment deleted","info");}catch{}
+}
+
+/* ═══════════════════════════════════════════════════════
+   15. TOAST
+═══════════════════════════════════════════════════════ */
+function showToast(msg,type){
+  document.querySelectorAll(".toast").forEach(t=>t.remove());
+  const BG={success:"#dcfce7",error:"#fee2e2",info:"#1e293b"};
+  const TC={success:"#166534",error:"#991b1b",info:"#fff"};
+  const t=document.createElement("div");
+  t.className="toast";t.setAttribute("role","status");t.setAttribute("aria-live","polite");
+  t.style.cssText="position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:"+(BG[type]||BG.info)+";color:"+(TC[type]||TC.info)+";font-family:Nunito,sans-serif;font-weight:700;font-size:13px;padding:11px 22px;border-radius:99px;z-index:999;max-width:320px;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.18);pointer-events:none;border:"+(type!=="info"?"1.5px solid "+(TC[type]||""):"none")+";animation:fadeIn .2s ease";
+  t.textContent=String(msg||"").slice(0,200);
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity="0";t.style.transition="opacity .3s";setTimeout(()=>t.remove(),300);},2800);
+}
+
+/* ═══════════════════════════════════════════════════════
+   16. BOOT
+═══════════════════════════════════════════════════════ */
+if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON.includes("YOUR_ANON")){
+  STATE.offline=true;STATE.loading=false;
+  STATE.equipment=JSON.parse(JSON.stringify(SEED));
+  render();
+}else{
+  render();
+  fetchEquipment().then(()=>startPolling());
+}
+
+// Auto-logout on JWT expiry
+setInterval(()=>{
+  if(STATE.adminSession?.expires_at&&Date.now()/1000>STATE.adminSession.expires_at-60){
+    doLogout();showToast("Session expired — please log in again.","error");render();
+  }
+},60000);
+</script>
+</body>
+</html>
