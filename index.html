@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
 <meta http-equiv="X-Frame-Options" content="DENY"/>
-<title>MedEquip Inventory Manager</title>
+<title>MedEquip Inventory</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -27,52 +27,111 @@ body{font-family:'Nunito',sans-serif;background:#8faab5;min-height:100vh;display
   --bg:#f0f4f6;--card:#ffffff;--text:#1e293b;--sub:#64748b;--border:#e2e8f0;
   --shadow:0 2px 12px rgba(0,0,0,.08);--shadow-lg:0 8px 32px rgba(0,0,0,.14);
 }
-/* Mobile shell */
-#app{width:100%;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;position:relative}
-/* Desktop: two-column layout with sidebar */
-@media(min-width:900px){
-  body{background:#dde8ed;flex-direction:row;align-items:flex-start;min-height:100vh}
-  #app{flex-direction:row;max-width:1280px;margin:0 auto;box-shadow:0 0 60px rgba(0,0,0,.18);border-radius:0;min-height:100vh}
-  #sidebar{width:240px;flex-shrink:0;background:var(--teal-dk);min-height:100vh;display:flex;flex-direction:column;padding:28px 0 20px;position:sticky;top:0;height:100vh;overflow-y:auto}
-  #main-content{flex:1;min-width:0;min-height:100vh;position:relative;overflow-x:hidden}
-  .bnav{display:none!important}
-  .screen{padding-bottom:24px!important}
-  .page-hero{padding:32px 32px 28px}
-  .page-hero h1{font-size:28px}
-  div[style*="padding:16px;display:flex;flex-direction:column"]{padding:24px 32px!important}
-  div[style*="padding:16px;display:flex;flex-direction:column;gap:14px"]{padding:24px 32px!important}
-  div[style*="padding:16px;display:flex;flex-direction:column;gap:16px"]{padding:24px 32px!important}
-  div[style*="padding:16px;display:flex;flex-direction:column;gap:12px"]{padding:24px 32px!important}
-  div[style*="padding:16px"]{padding:24px 32px!important}
-  .fullscreen{position:fixed;left:240px;right:0;transform:none;max-width:none;width:auto}
-  .overlay{left:240px}
-  .mbox{max-width:520px;align-self:flex-end;border-radius:20px 20px 0 0}
-  #offline-bar{left:240px;transform:none;max-width:none}
-  .tile{padding:22px 18px 26px}
+/* ── Base (mobile-first) ───────────────────────── */
+#app{width:100%;min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+#sidebar{display:none}
+#main-content{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+
+/* ── Mobile ≤599px ─────────────────────────────── */
+@media(max-width:599px){
+  body{justify-content:center}
+  #app{max-width:430px}
 }
-@media(min-width:1100px){
+
+/* ── Tablet 600–899px ──────────────────────────── */
+@media(min-width:600px) and (max-width:899px){
+  body{background:#dde8ed;justify-content:center}
+  #app{max-width:680px;box-shadow:0 0 40px rgba(0,0,0,.2)}
+  .page-hero{padding:28px 28px 24px}
+  .page-hero h1{font-size:26px}
+}
+
+/* ── Desktop ≥900px ────────────────────────────── */
+@media(min-width:900px){
+  body{background:#dde8ed;justify-content:center;align-items:flex-start}
+  #app{flex-direction:row;max-width:1320px;min-height:100vh;box-shadow:0 0 60px rgba(0,0,0,.2)}
+
+  /* Sidebar */
+  #sidebar{
+    display:flex;flex-direction:column;
+    width:230px;flex-shrink:0;
+    background:var(--teal-dk);
+    min-height:100vh;
+    padding:28px 0 20px;
+    position:sticky;top:0;height:100vh;overflow-y:auto;
+  }
+
+  /* Main content fills the rest */
+  #main-content{flex:1;min-width:0;min-height:100vh;overflow-x:hidden}
+
+  /* Bottom nav hidden on desktop */
+  .bnav{display:none!important}
+
+  /* Screen padding */
+  .screen{padding-bottom:32px!important}
+  .page-hero{padding:32px 40px 28px}
+  .page-hero h1{font-size:28px}
+
+  /* Tiles bigger */
+  .tile{padding:22px 18px 26px}
+
+  /* Full-screen slides cover only the main content area */
+  .fullscreen{
+    position:fixed;
+    top:0;bottom:0;
+    left:230px;right:0;
+    transform:none;
+    max-width:none;
+    width:auto;
+    z-index:50;
+  }
+
+  /* Modal overlay: covers main content only */
+  .overlay{
+    position:fixed;
+    top:0;bottom:0;
+    left:230px;right:0;
+    transform:none;
+    align-items:center;   /* center vertically on desktop */
+    justify-content:center;
+    z-index:100;
+  }
+
+  /* Modal box: centered, not bottom-sheet on desktop */
+  .mbox{
+    width:100%;
+    max-width:560px;
+    max-height:90vh;
+    border-radius:18px;   /* fully rounded on desktop */
+    align-self:auto;
+    margin:0;
+  }
+
+  /* Offline bar covers main area */
+  #offline-bar{
+    position:fixed;
+    top:0;
+    left:230px;right:0;
+    transform:none;
+    max-width:none;
+    width:auto;
+  }
+}
+
+/* ── Wide desktop ≥1200px ──────────────────────── */
+@media(min-width:1200px){
   #sidebar{width:260px}
   .fullscreen{left:260px}
   .overlay{left:260px}
-}
-/* Tablet */
-@media(min-width:600px) and (max-width:899px){
-  body{background:#dde8ed;justify-content:center}
-  #app{max-width:600px;border-radius:0;box-shadow:0 0 40px rgba(0,0,0,.2)}
-  #sidebar{display:none}
-  .page-hero h1{font-size:26px}
-}
-/* Mobile */
-@media(max-width:599px){
-  #sidebar{display:none}
-  #app{max-width:430px}
+  #offline-bar{left:260px}
+  #app{max-width:1440px}
 }
 .screen{flex:1;overflow-y:auto;padding-bottom:88px;animation:fadeUp .2s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 /* ── Nav ── */
-.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -4px 20px rgba(0,0,0,.07);max-width:430px;left:50%;transform:translateX(-50%)}
-@media(min-width:600px) and (max-width:899px){.bnav{max-width:600px}}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--card);border-top:1px solid var(--border);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -4px 20px rgba(0,0,0,.07)}
+@media(min-width:600px) and (max-width:899px){.bnav{max-width:680px}}
 .nbtn{flex:1;background:none;border:none;padding:10px 2px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;user-select:none;position:relative}
 .nbtn .ico{font-size:19px;line-height:1;filter:grayscale(1) opacity(.35);transition:filter .15s}
 .nbtn .lbl{font-size:9.5px;font-weight:700;letter-spacing:.3px;color:var(--sub);font-family:'Nunito',sans-serif}
@@ -117,7 +176,7 @@ input[type=date].inp{color-scheme:light}
 
 /* ── Full-screen slide ── */
 .fullscreen{position:fixed;inset:0;background:var(--bg);z-index:50;overflow-y:auto;max-width:430px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;animation:slideRight .22s ease both}
-@media(min-width:600px) and (max-width:899px){.fullscreen{max-width:600px}}
+@media(min-width:600px) and (max-width:899px){.fullscreen{max-width:680px}}
 @keyframes slideRight{from{opacity:0;transform:translateX(calc(50% + 24px))}to{opacity:1;transform:translateX(-50%)}}
 .fs-header{background:var(--card);padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
 .fs-back{background:var(--teal-lt);border:none;cursor:pointer;color:var(--teal);font-family:'Nunito',sans-serif;padding:7px 12px;border-radius:10px;font-weight:700;font-size:14px}
@@ -126,6 +185,11 @@ input[type=date].inp{color-scheme:light}
 .page-hero{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-dk) 100%);padding:26px 20px 22px;color:#fff}
 .page-hero h1{font-size:24px;font-weight:900;color:#fff;line-height:1.1}
 .page-hero p{font-size:11px;font-weight:700;letter-spacing:1.5px;opacity:.8;text-transform:uppercase;margin-top:4px}
+
+/* ── Content padding (adapts per screen size) ── */
+.content-pad{padding:16px;display:flex;flex-direction:column}
+@media(min-width:900px){.content-pad{padding:24px 36px}}
+@media(min-width:600px) and (max-width:899px){.content-pad{padding:20px 24px}}
 
 /* ── Misc ── */
 .sec-lbl{font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--sub);text-transform:uppercase}
@@ -144,13 +208,13 @@ input[type=date].inp{color-scheme:light}
 .report-row{padding:14px 16px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform .12s}
 .report-row:active{transform:scale(.975)}
 #offline-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#f97316;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:6px;z-index:200;display:none}
-@media(min-width:600px) and (max-width:899px){#offline-bar{max-width:600px}}
+@media(min-width:600px) and (max-width:899px){#offline-bar{max-width:680px}}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 </style>
 </head>
 <body>
-<div id="offline-bar">⚠️ OFFLINE</div>
+<div id="offline-bar">⚠️ OFFLINE / DEMO MODE — configure Supabase credentials for live data</div>
 <div id="app"></div>
 <script>
 "use strict";
@@ -221,11 +285,16 @@ const sb=(()=>{
     signOut:(tok)=>req(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON,"Authorization":"Bearer "+tok}}),
     // Settings table: key-value store synced across all devices
     getSettings:()=>req(SUPABASE_URL+"/rest/v1/settings?select=key,value",{headers:hdr()}),
-    setSetting:(key,value)=>req(SUPABASE_URL+"/rest/v1/settings",{
-      method:"POST",
-      headers:hdr({Prefer:"return=representation,resolution=merge-duplicates"}),
-      body:JSON.stringify({key,value:JSON.stringify(value)}),
-    }),
+    setSetting:(key,value)=>{
+      // Upsert: POST with ON CONFLICT DO UPDATE (merge-duplicates) 
+      const h={...hdr()};
+      h["Prefer"]="resolution=merge-duplicates";
+      return req(SUPABASE_URL+"/rest/v1/settings",{
+        method:"POST",
+        headers:h,
+        body:JSON.stringify({key,value:JSON.stringify(value)}),
+      });
+    },
   };
 })();
 
@@ -680,7 +749,7 @@ function renderHome(){
   ];
   const recent=[...STATE.equipment].sort((a,b)=>new Date(b.last_updated)-new Date(a.last_updated)).slice(0,3);
   return '<div class="screen">'+
-    '<div class="page-hero"><h1>🏥 '+esc(STATE.settings.hospitalName)+'</h1><p>Medical Equipment Management</p>'+(STATE.offline?'<div style="margin-top:8px;background:rgba(255,255,255,.2);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;display:inline-block">⚠️ Demo Mode</div>':'')+'</div>'+
+    '<div class="page-hero"><h1>🏥 '+esc(STATE.settings.hospitalName)+'</h1><p>Medical Equipment Management</p>'+(STATE.offline?'<div style="margin-top:8px;background:rgba(255,255,255,.2);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;display:inline-block">⚠️ Offline/Demo Mode</div>':'<div style="margin-top:8px;background:rgba(255,255,255,.15);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;display:inline-block">🟢 Live — Synced across devices</div>')+'</div>'+
     '<div style="padding:16px;display:flex;flex-direction:column;gap:16px">'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+tiles.map(t=>'<div class="tile" data-nav="'+esc(t.nav)+'"><div style="font-size:26px;margin-bottom:8px">'+t.ico+'</div><div style="font-size:32px;font-weight:900;color:var(--text);line-height:1">'+t.n+'</div><div style="font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--sub);text-transform:uppercase;margin-top:6px">'+esc(t.lbl)+'</div><div class="tile-bar" style="background:'+t.bar+'"></div></div>').join("")+'</div>'+
     '<div><p class="sec-lbl" style="margin-bottom:10px">Quick Actions</p>'+
@@ -1125,56 +1194,123 @@ function renderModal(){
 
   /* SQL viewer */
   if(STATE.modal==="sqlView"){
-    const sql=`-- Run ONCE in Supabase SQL Editor:
+    const sql=`-- ═══════════════════════════════════════════════════════════
+-- MedEquip Inventory — Complete Supabase Setup SQL
+-- Run this ONCE in your Supabase SQL Editor (SQL tab)
+-- ═══════════════════════════════════════════════════════════
 
--- ── Settings table (syncs hospital name, lists etc across all devices) ──
+-- ── 1. SETTINGS TABLE ─────────────────────────────────────
+-- Stores hospital name, notification prefs, and dropdown lists.
+-- Changes made in Settings are synced to all devices via this table.
 CREATE TABLE IF NOT EXISTS settings (
   key        TEXT PRIMARY KEY,
   value      TEXT NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Trigger to auto-update updated_at
+CREATE OR REPLACE FUNCTION update_settings_ts()
+RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS settings_updated ON settings;
+CREATE TRIGGER settings_updated BEFORE UPDATE ON settings
+  FOR EACH ROW EXECUTE FUNCTION update_settings_ts();
+
+-- Row Level Security for settings
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read settings"  ON settings;
+DROP POLICY IF EXISTS "Admin write settings"  ON settings;
+DROP POLICY IF EXISTS "Admin update settings" ON settings;
 CREATE POLICY "Public read settings"  ON settings FOR SELECT USING (true);
 CREATE POLICY "Admin write settings"  ON settings FOR INSERT WITH CHECK (auth.role()='authenticated');
 CREATE POLICY "Admin update settings" ON settings FOR UPDATE USING (auth.role()='authenticated');
 
--- Seed default settings:
+-- Seed default settings (safe to run multiple times)
 INSERT INTO settings (key, value) VALUES
   ('hospitalName', '"Hospital"'),
   ('reminders',    'true'),
   ('calThreshold', '30')
 ON CONFLICT (key) DO NOTHING;
 
--- ── Equipment table ─────────────────────────────────────────────────────
+
+-- ── 2. EQUIPMENT TABLE ────────────────────────────────────
 CREATE TABLE IF NOT EXISTS equipment (
-  id                 TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  name               TEXT NOT NULL CHECK(length(name)>=2),
-  category           TEXT NOT NULL,
-  serial_number      TEXT NOT NULL,
-  location           TEXT NOT NULL,
-  status             TEXT NOT NULL DEFAULT 'functional_in_use'
-                       CHECK(status IN ('functional_in_use','functional_not_in_use',
-                                        'non_functional','needs_repair','obsolete')),
-  next_maintenance   DATE NOT NULL,
-  calibration_status TEXT NOT NULL DEFAULT 'cal_not_required'
+  id                 TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name               TEXT        NOT NULL CHECK(length(trim(name)) >= 2),
+  category           TEXT        NOT NULL,
+  serial_number      TEXT        NOT NULL,
+  location           TEXT        NOT NULL,
+  status             TEXT        NOT NULL DEFAULT 'functional_in_use'
+                       CHECK(status IN (
+                         'functional_in_use','functional_not_in_use',
+                         'non_functional','needs_repair','obsolete'
+                       )),
+  next_maintenance   DATE        NOT NULL,
+  calibration_status TEXT        NOT NULL DEFAULT 'cal_not_required'
                        CHECK(calibration_status IN ('cal_required','cal_not_required')),
   last_calibration   DATE,
   next_calibration   DATE,
-  notes              TEXT DEFAULT '',
-  last_updated       DATE NOT NULL DEFAULT CURRENT_DATE
+  notes              TEXT        NOT NULL DEFAULT '',
+  last_updated       DATE        NOT NULL DEFAULT CURRENT_DATE,
+  CONSTRAINT chk_cal_dates CHECK (
+    calibration_status = 'cal_not_required'
+    OR (calibration_status = 'cal_required' AND next_calibration IS NOT NULL)
+  )
 );
 
--- Upgrade existing table safely:
+-- Safe column additions for upgrading an existing table
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS calibration_status TEXT DEFAULT 'cal_not_required';
-ALTER TABLE equipment ADD COLUMN IF NOT EXISTS last_calibration DATE;
-ALTER TABLE equipment ADD COLUMN IF NOT EXISTS next_calibration DATE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS last_calibration   DATE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS next_calibration   DATE;
 
--- Row Level Security:
+-- Indexes for fast queries
+CREATE INDEX IF NOT EXISTS idx_equipment_status       ON equipment(status);
+CREATE INDEX IF NOT EXISTS idx_equipment_cal_status   ON equipment(calibration_status);
+CREATE INDEX IF NOT EXISTS idx_equipment_location     ON equipment(location);
+CREATE INDEX IF NOT EXISTS idx_equipment_last_updated ON equipment(last_updated DESC);
+
+-- Row Level Security for equipment
 ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public read"  ON equipment;
+DROP POLICY IF EXISTS "Admin insert" ON equipment;
+DROP POLICY IF EXISTS "Admin update" ON equipment;
+DROP POLICY IF EXISTS "Admin delete" ON equipment;
 CREATE POLICY "Public read"  ON equipment FOR SELECT USING (true);
 CREATE POLICY "Admin insert" ON equipment FOR INSERT WITH CHECK (auth.role()='authenticated');
 CREATE POLICY "Admin update" ON equipment FOR UPDATE USING (auth.role()='authenticated');
-CREATE POLICY "Admin delete" ON equipment FOR DELETE USING (auth.role()='authenticated');`;
+CREATE POLICY "Admin delete" ON equipment FOR DELETE USING (auth.role()='authenticated');
+
+
+-- ── 3. OPTIONAL SAMPLE DATA ───────────────────────────────
+-- Remove the /* and */ below to seed sample equipment:
+/*
+INSERT INTO equipment
+  (id,name,category,serial_number,location,status,next_maintenance,
+   calibration_status,last_calibration,next_calibration,notes,last_updated)
+VALUES
+  ('1','Weighing Scale','Vital Signs','20345','OPD','functional_not_in_use',
+   '2026-06-10','cal_required','2025-10-10','2026-10-10','','2026-04-07'),
+  ('2','ECG Machine','Monitoring','AD 89453','Emergency Room','functional_in_use',
+   '2026-08-07','cal_required','2025-08-07','2026-08-07','','2026-04-07'),
+  ('3','Ultrasound Machine','Diagnostic Equipment','US-2024-001','Radiology',
+   'non_functional','2026-05-29','cal_required','2025-05-29','2026-05-29',
+   'Probe malfunction','2026-04-07'),
+  ('4','Defibrillator','Life Support','DF-4421','Emergency Room','functional_in_use',
+   '2026-07-15','cal_required','2025-04-15','2026-04-15','','2026-04-06'),
+  ('5','Infusion Pump','Life Support','IP-0093','ICU','functional_in_use',
+   '2026-07-20','cal_required','2025-01-15','2026-01-15','Calibration overdue','2026-04-05'),
+  ('6','Pulse Oximeter','Vital Signs','PO-7821','Ward A','functional_in_use',
+   '2026-07-01','cal_not_required',NULL,NULL,'','2026-04-04'),
+  ('7','Ventilator','Life Support','VN-2019-3','ICU','needs_repair',
+   '2026-06-14','cal_required','2025-06-14','2026-06-14','Fan bearing worn','2026-04-03'),
+  ('8','Blood Glucose Meter','Laboratory','BG-112','Laboratory','obsolete',
+   '2026-05-01','cal_not_required',NULL,NULL,'Scheduled for disposal','2026-04-02')
+ON CONFLICT (id) DO NOTHING;
+*/
+
+-- ═══════════════════════════════════════════════════════════
+-- DONE. The app will now read/write live data from Supabase.
+-- Create your admin user at: Supabase → Authentication → Users
+-- ═══════════════════════════════════════════════════════════`;
     return '<div class="overlay" role="dialog" aria-modal="true">'+
       '<div class="mbox" style="max-height:88vh"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-weight:900;font-size:18px;color:var(--text)">🗄️ Supabase Setup SQL</h2>'+
         '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button></div>'+
@@ -1236,58 +1372,92 @@ CREATE POLICY "Admin delete" ON equipment FOR DELETE USING (auth.role()='authent
   const isEdit=STATE.modal&&STATE.modal!=="add";
   const item=isEdit?STATE.modal:{};
   const calReq=(item.calibration_status||"cal_not_required")==="cal_required";
-  return '<div class="overlay" role="dialog" aria-modal="true">'+
-    '<div class="mbox"><div style="display:flex;justify-content:space-between;align-items:center">'+
-      '<h2 style="font-weight:900;font-size:20px;color:var(--text)">'+(isEdit?"✏️ Edit":"➕ Add")+' Equipment</h2>'+
-      '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button>'+
-    '</div>'+
-    fField("Equipment Name","inp-name","text",item.name||"",true)+
-    '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Category <span style="color:var(--red)">*</span></label>'+
-      '<select class="inp" id="inp-category">'+getCategories().map(c=>'<option value="'+esc(c)+'" '+(item.category===c?"selected":"")+'>'+esc(c)+'</option>').join("")+'</select></div>'+
-    fField("Serial / Asset Number","inp-serial","text",item.serial_number||"",true)+
-    '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Location <span style="color:var(--red)">*</span></label>'+
-      '<select class="inp" id="inp-location">'+getLocations().map(l=>'<option value="'+esc(l)+'" '+(item.location===l?"selected":"")+'>'+esc(l)+'</option>').join("")+'</select></div>'+
-    fField("Next Maintenance Date","inp-maint","date",item.next_maintenance||today(),true)+
 
-    // ── STATUS SECTION — clearly two separate fields ──────────────────────
-    '<div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:12px">'+
-      '<div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.8px">📋 Status Fields</div>'+
+  return '<div class="overlay" role="dialog" aria-modal="true" aria-label="'+(isEdit?"Edit":"Add")+' Equipment">'+
+    '<div class="mbox">'+
 
-      // Field 1: Functional Status
-      '<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">'+
-        '<div style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.8px">⚙️ 1 of 2 — Functional Status</div>'+
-        '<p style="font-size:11px;color:var(--sub)">Is the equipment physically working?</p>'+
-        '<select class="inp" id="inp-status">'+Object.entries(STATUS_CFG).map(([k,v])=>'<option value="'+esc(k)+'" '+(item.status===k?"selected":"")+'>'+v.icon+' '+esc(v.label)+'</option>').join("")+'</select>'+
-        '<span class="field-err" id="err-inp-status" role="alert"></span>'+
+      // ── Header ──────────────────────────────────────────────────────────
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+        '<h2 style="font-weight:900;font-size:20px;color:var(--text)">'+(isEdit?"✏️ Edit":"➕ Add")+' Equipment</h2>'+
+        '<button id="btn-close-modal" style="background:var(--bg);border:none;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>'+
+      '</div>'+
+      '<p style="font-size:12px;color:var(--sub);margin-bottom:4px">Fields marked <span style="color:var(--red)">*</span> are required.</p>'+
+
+      // ── Basic Info ───────────────────────────────────────────────────────
+      fField("Equipment Name","inp-name","text",item.name||"",true)+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        '<div style="display:flex;flex-direction:column;gap:4px">'+
+          '<label style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Category <span style="color:var(--red)">*</span></label>'+
+          '<select class="inp" id="inp-category">'+getCategories().map(c=>'<option value="'+esc(c)+'" '+(item.category===c?"selected":"")+'>'+esc(c)+'</option>').join("")+'</select>'+
+        '</div>'+
+        fField("Serial / Asset No.","inp-serial","text",item.serial_number||"",true)+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        '<div style="display:flex;flex-direction:column;gap:4px">'+
+          '<label style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Location <span style="color:var(--red)">*</span></label>'+
+          '<select class="inp" id="inp-location">'+getLocations().map(l=>'<option value="'+esc(l)+'" '+(item.location===l?"selected":"")+'>'+esc(l)+'</option>').join("")+'</select>'+
+        '</div>'+
+        fField("Next Maintenance","inp-maint","date",item.next_maintenance||today(),true)+
       '</div>'+
 
-      // Field 2: Calibration Status
-      '<div style="background:#fff;border:1.5px solid '+(calReq?"var(--amber)":"var(--border)")+';border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">'+
-        '<div style="font-size:10px;font-weight:800;color:#b45309;text-transform:uppercase;letter-spacing:.8px">⏰ 2 of 2 — Calibration Status</div>'+
-        '<p style="font-size:11px;color:var(--sub)">Does this equipment require periodic calibration?</p>'+
-        '<select class="inp" id="inp-cal-status" onchange="toggleCalDates(this.value)">'+Object.entries(CAL_STATUS).map(([k,v])=>'<option value="'+esc(k)+'" '+((item.calibration_status||"cal_not_required")===k?"selected":"")+'>'+v.icon+' '+esc(v.label)+'</option>').join("")+'</select>'+
-        '<span class="field-err" id="err-inp-cal-status" role="alert"></span>'+
-      '</div>'+
-    '</div>'+
+      // ── Status Section ───────────────────────────────────────────────────
+      '<div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:13px;padding:14px;display:flex;flex-direction:column;gap:10px">'+
+        '<div style="font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px">📋 Status — Fill Both Fields</div>'+
 
-    // Calibration dates — enabled only when cal_required
-    '<div id="cal-dates-wrap" style="transition:opacity .2s;'+(calReq?"":"opacity:.35;pointer-events:none")+'">'+
-      '<div style="background:'+(calReq?"#fef3c7":"#f8fafc")+';border:1.5px solid '+(calReq?"var(--amber)":"var(--border)")+';border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px">'+
-        '<div style="font-size:11px;font-weight:700;color:'+(calReq?"#92400e":"var(--sub)");')">'+
-        '<span>'+(calReq?"🔧 Fill in calibration dates:":"ℹ️ Select Calibration Required above to enable")+'</span></div>'+
-        fField("Last Calibration Date","inp-last-cal","date",item.last_calibration||"",false)+
-        fField("Next Calibration Date","inp-next-cal","date",item.next_calibration||"",calReq)+
-      '</div>'+
-    '</div>'+
+        // Field 1: Functional Status
+        '<div style="background:#fff;border:1.5px solid var(--teal-mid);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">'+
+          '<div style="display:flex;align-items:center;gap:6px">'+
+            '<span style="font-size:16px">⚙️</span>'+
+            '<span style="font-size:10px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:.8px">1 of 2 — Functional Status</span>'+
+          '</div>'+
+          '<p style="font-size:11px;color:var(--sub);line-height:1.5;margin:0">Is the equipment physically working?</p>'+
+          '<select class="inp" id="inp-status" style="margin-top:2px">'+
+            Object.entries(STATUS_CFG).map(([k,v])=>'<option value="'+esc(k)+'" '+(item.status===k?"selected":"")+'>'+v.icon+' '+esc(v.label)+'</option>').join("")+
+          '</select>'+
+          '<span class="field-err" id="err-inp-status" role="alert"></span>'+
+        '</div>'+
 
-    '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Notes</label>'+
-      '<textarea class="inp" id="inp-notes" rows="3" style="resize:vertical" maxlength="500">'+esc(item.notes||"")+'</textarea></div>'+
-    '<div id="form-err" style="display:none;background:var(--red-lt);color:var(--red);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600" role="alert"></div>'+
-    '<button class="btn btn-teal" id="btn-save-eq" style="margin-top:4px">💾 '+(isEdit?"Update":"Add")+' Equipment</button>'+
-    (isEdit?'<button class="btn btn-outline" id="btn-delete-eq" style="color:var(--red);border-color:var(--red)">🗑 Delete Equipment</button>':"")+
-  '</div></div>';
+        // Field 2: Calibration Status
+        '<div style="background:#fff;border:1.5px solid '+(calReq?"var(--amber)":"var(--border)")+';border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px">'+
+          '<div style="display:flex;align-items:center;gap:6px">'+
+            '<span style="font-size:16px">⏰</span>'+
+            '<span style="font-size:10px;font-weight:800;color:#b45309;text-transform:uppercase;letter-spacing:.8px">2 of 2 — Calibration Status</span>'+
+          '</div>'+
+          '<p style="font-size:11px;color:var(--sub);line-height:1.5;margin:0">Does this equipment require periodic calibration?</p>'+
+          '<select class="inp" id="inp-cal-status" onchange="toggleCalDates(this.value)" style="margin-top:2px">'+
+            Object.entries(CAL_STATUS).map(([k,v])=>'<option value="'+esc(k)+'" '+((item.calibration_status||"cal_not_required")===k?"selected":"")+'>'+v.icon+' '+esc(v.label)+'</option>').join("")+
+          '</select>'+
+          '<span class="field-err" id="err-inp-cal-status" role="alert"></span>'+
+        '</div>'+
+      '</div>'+
+
+      // ── Calibration Dates (conditional) ─────────────────────────────────
+      '<div id="cal-dates-wrap" style="'+(calReq?"":"opacity:.35;pointer-events:none;")+'display:flex;flex-direction:column;gap:0;transition:opacity .2s">'+
+        '<div style="background:'+(calReq?"#fef3c7":"#f8fafc")+';border:1.5px solid '+(calReq?"var(--amber)":"var(--border)")+';border-radius:12px;padding:13px;display:flex;flex-direction:column;gap:10px">'+
+          '<div style="font-size:11px;font-weight:700;color:'+(calReq?"#92400e":"var(--sub)")+';display:flex;align-items:center;gap:6px">'+
+            '<span id="cal-hint-icon">'+(calReq?"🔧":"ℹ️")+'</span>'+
+            '<span id="cal-hint-text">'+(calReq?"Fill in both calibration dates below":"Select Calibration Required above to enable")+'</span>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+            fField("Last Calibration Date","inp-last-cal","date",item.last_calibration||"",false)+
+            fField("Next Calibration Date","inp-next-cal","date",item.next_calibration||"",calReq)+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+
+      // ── Notes ────────────────────────────────────────────────────────────
+      '<div style="display:flex;flex-direction:column;gap:4px">'+
+        '<label style="font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px">Notes</label>'+
+        '<textarea class="inp" id="inp-notes" rows="3" style="resize:vertical" maxlength="500" placeholder="Optional notes…">'+esc(item.notes||"")+'</textarea>'+
+      '</div>'+
+
+      // ── Error + Buttons ──────────────────────────────────────────────────
+      '<div id="form-err" style="display:none;background:var(--red-lt);color:var(--red);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600" role="alert"></div>'+
+      '<button class="btn btn-teal" id="btn-save-eq">💾 '+(isEdit?"Update":"Save")+'  Equipment</button>'+
+      (isEdit?'<button class="btn btn-outline" id="btn-delete-eq" style="color:var(--red);border-color:var(--red)">🗑 Delete Equipment</button>':"")+
+
+    '</div></div>';
 }
-
 function fField(label,id,type,value,req){
   return '<div style="display:flex;flex-direction:column;gap:4px">'+
     '<label style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px" for="'+esc(id)+'">'+esc(label)+(req?' <span style="color:var(--red)">*</span>':"")+'</label>'+
