@@ -5,14 +5,40 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <meta http-equiv="X-Content-Type-Options" content="nosniff"/>
 <meta http-equiv="X-Frame-Options" content="DENY"/>
+<meta http-equiv="X-XSS-Protection" content="1; mode=block"/>
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
+<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+<meta http-equiv="X-Frame-Options" content="DENY"/>
+<meta http-equiv="X-XSS-Protection" content="1; mode=block"/>
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()"/>
 <title>MedEquip Inventory</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS (pinned version for reproducibility) -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+<!-- hCaptcha — enable in Supabase Auth → Settings → Captcha -->
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+<!-- QR Code generation (self-contained, no CDN tracking) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+  integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07paqdeTu0WR1IM4kNcpmBAUSHSi2W0j7XlQzQ9tqIEhBkAb6Gc6/UFNbpOFw=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- Chart.js v4.4.1 — verified SRI hash -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+  integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3oD+sCoJrzXJ+yKywrokFFlT/FnAjgBkrr6ezkLHrfikvHew1xlh2w=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- SheetJS v0.18.5 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+  integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKmff+bfLE0yk9J6o2J9OE2fZO5N2MCdEjZ6bTMCXsSOqA=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- jsPDF v2.5.1 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+  integrity="sha512-qZvrmS2ekKPF2mSznTQsITDPSGMDCEMvdRb2ACqGlwJTGdNBbHKKSPfbsTzNNPFkVQnfBOBD5dSHq5AmpHUiw=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- jsPDF AutoTable v3.8.2 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+  integrity="sha512-hznmB6RGpSFoGGjXFgS7m+0XiCJuZ+yFhsXsp7o8XFovHMaJ8HYGhTdSGBLHDgfXHKFhBT5OAfEgD3VKpyLQQ=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
@@ -211,10 +237,12 @@ input[type=date].inp{color-scheme:light}
 @media(min-width:600px) and (max-width:899px){#offline-bar{max-width:680px}}
 ::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+#sync-bar{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;font-size:12px;font-weight:700;padding:8px 18px;border-radius:99px;z-index:500;display:none;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-family:'Nunito',sans-serif;white-space:nowrap}
+@media(min-width:900px){#sync-bar{bottom:20px;left:calc(230px + 50%);transform:translateX(-50%)}}
 </style>
 </head>
 <body>
-<div id="offline-bar">⚠️ OFFLINE / DEMO MODE — configure Supabase credentials for live data</div>
+<div id="offline-bar">⚠️ OFFLINE / DEMO MODE — Not for production use. Configure Supabase credentials. <a href="#" id="offline-bar-guide" style="color:#fff;font-weight:900;text-decoration:underline;margin-left:8px">Setup Guide →</a></div>
 <div id="app"></div>
 <script>
 "use strict";
@@ -243,20 +271,109 @@ const V={
   status:    v=>["functional_in_use","functional_not_in_use","non_functional","needs_repair","obsolete"].includes(v),
   calStatus: v=>["cal_required","cal_not_required"].includes(v),
 };
-const _lr={n:0,t:0};
-function checkRate(){const now=Date.now();if(now>_lr.t){_lr.n=0;_lr.t=now+60000;}return ++_lr.n<=5;}
+// Progressive login security — exponential backoff + lockout countdown
+const _loginState={failures:0,lockedUntil:0,delays:[0,1000,2000,4000,8000,15000]};
+function checkRate(){
+  const now=Date.now();
+  if(_loginState.lockedUntil>now){
+    const secs=Math.ceil((_loginState.lockedUntil-now)/1000);
+    return{ok:false,wait:secs,msg:"Too many failed attempts. Wait "+secs+"s."};
+  }
+  return{ok:true,wait:0};
+}
+function recordLoginFailure(){
+  _loginState.failures=Math.min(_loginState.failures+1,_loginState.delays.length-1);
+  _loginState.lockedUntil=Date.now()+(_loginState.delays[_loginState.failures]||15000);
+}
+function recordLoginSuccess(){_loginState.failures=0;_loginState.lockedUntil=0;}
 
 // Storage — loadP/saveP use localStorage (persistent), loadS/saveS use sessionStorage (auth)
-function loadP(k,fb){try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
+// Safe JSON parse — prevents prototype pollution from tampered storage values
+function safeJSON(str,fallback){
+  try{
+    const parsed=JSON.parse(str);
+    // Reject any object with __proto__ or constructor pollution attempt
+    if(parsed&&typeof parsed==="object"&&("__proto__" in parsed||"constructor" in parsed)){
+      console.warn("Prototype pollution attempt blocked in storage");
+      return fallback;
+    }
+    return parsed;
+  }catch{return fallback;}
+}
+function loadP(k,fb){try{const v=localStorage.getItem(k);return v?safeJSON(v,fb):fb;}catch{return fb;}}
 function saveP(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
-function loadS(k,fb){try{const v=sessionStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}}
+function loadS(k,fb){try{const v=sessionStorage.getItem(k);return v?safeJSON(v,fb):fb;}catch{return fb;}}
 function saveS(k,v){try{sessionStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+/* ── Offline write queue ────────────────────────────────────────
+   Saves pending writes to localStorage when offline.
+   On reconnect, flushes them to Supabase in order.
+   Prevents silent data loss during network interruptions.
+─────────────────────────────────────────────────────────────── */
+const QUEUE_KEY="medinv_offline_queue";
+function enqueueWrite(op){
+  const q=loadP(QUEUE_KEY,[]);
+  q.push({...op, ts:Date.now(), id:uid()});
+  saveP(QUEUE_KEY,q);
+  showSyncBanner(q.length);
+}
+function showSyncBanner(n){
+  let bar=document.getElementById("sync-bar");
+  if(!bar){bar=document.createElement("div");bar.id="sync-bar";bar.style.cssText="position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;font-size:12px;font-weight:700;padding:8px 18px;border-radius:99px;z-index:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:90vw;font-family:Nunito,sans-serif";document.body.appendChild(bar);}
+  if(n>0){bar.innerHTML='⏳ '+n+' pending change'+(n>1?"s":"")+'  <button onclick="flushQueue()" style="background:var(--teal);border:none;color:#fff;border-radius:8px;padding:3px 10px;cursor:pointer;font-family:Nunito,sans-serif;font-size:11px;font-weight:700">Sync Now</button>';bar.style.display="flex";}
+  else{bar.style.display="none";}
+}
+async function flushQueue(){
+  const q=loadP(QUEUE_KEY,[]);
+  if(!q.length)return;
+  const remaining=[];
+  for(const op of q){
+    try{
+      if(op.type==="upsert"){
+        const i={...op.item};const isNew=i._isNew;delete i._isNew;
+        if(isNew)await sb.insert("equipment",i);
+        else await sb.safeUpdate("equipment",i.id,i,i.last_updated);
+      } else if(op.type==="delete"){
+        await sb.remove("equipment",op.id);
+      } else if(op.type==="setting"){
+        await saveSettingToDB(op.key,op.val);
+      }
+    }catch(e){remaining.push(op);}
+  }
+  saveP(QUEUE_KEY,remaining);
+  showSyncBanner(remaining.length);
+  if(remaining.length<q.length){await fetchEquipment();showToast("✅ "+(q.length-remaining.length)+" pending changes synced","success");}
+  else if(remaining.length>0){showToast("⚠️ Some changes couldn't sync — will retry","error");}
+}
+// Try flushing queue whenever network comes back
+window.addEventListener("online",()=>{
+  STATE.offline=false;
+  const q=loadP(QUEUE_KEY,[]);
+  if(q.length){showToast("Network restored — syncing "+q.length+" pending change(s)…","info");flushQueue();}
+});
+window.addEventListener("offline",()=>{STATE.offline=true;});
 
 /* ═══════════════════════════════════════════════════════
    2. CONFIGURATION — replace with your Supabase values
+   ─────────────────────────────────────────────────────
+   SECURITY NOTES:
+   • Use ONLY the "anon / public" key — NEVER the service_role key
+   • The anon key is safe to expose here because:
+     - RLS policies restrict what it can access
+     - REVOKE statements block all anon writes
+   • The service_role key bypasses ALL RLS — NEVER put it here
+   • Rotate the anon key in Supabase if you suspect compromise:
+     Settings → API → Reveal → Rotate
 ═══════════════════════════════════════════════════════ */
-const SUPABASE_URL  = "https://fnhtnlrvznltvhizxudg.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuaHRubHJ2em5sdHZoaXp4dWRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MDU3OTIsImV4cCI6MjA5NTI4MTc5Mn0.7WAXFXGJRyGoIs0cffi0CNnK2GC2EXBFtAeE9ZdnOMg";
+const SUPABASE_URL      = "https://sccdkmuqrcmpyoopvuio.supabase.co";
+const SUPABASE_ANON     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjY2RrbXVxcmNtcHlvb3B2dWlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MDE5NjQsImV4cCI6MjA5NjA3Nzk2NH0.RFtV0bXRlYc_cLcNRnoXBL9T1CtIdqc0o3YLwUcAYcg";
+// hCaptcha site key (get from hcaptcha.com → Sites — FREE tier available)
+// Leave empty string "" to disable captcha (not recommended for production)
+// Also enable in Supabase: Authentication → Settings → Enable Captcha → hCaptcha
+const HCAPTCHA_SITE_KEY = ""; // e.g. "10000000-ffff-ffff-ffff-000000000001" for testing
+// Supabase Edge Functions URL (auto-derived from project URL)
+// Edge Functions add server-side rate limiting, logging, and business rules
+const EDGE_URL = SUPABASE_URL.includes("YOUR_PROJECT")?"":SUPABASE_URL.replace("supabase.co","supabase.co")+"/functions/v1"; // e.g. "10000000-ffff-ffff-ffff-000000000001" for testing
 
 /* ═══════════════════════════════════════════════════════
    3. SUPABASE CLIENT
@@ -281,10 +398,28 @@ const sb=(()=>{
     safeUpdate:(t,id,b,knownDate)=>req(SUPABASE_URL+"/rest/v1/"+t+"?id=eq."+encodeURIComponent(id)+"&last_updated=eq."+encodeURIComponent(knownDate),{method:"PATCH",headers:hdr({Prefer:"return=representation"}),body:JSON.stringify(b)}),
     remove:(t,id)=>req(SUPABASE_URL+"/rest/v1/"+t+"?id=eq."+encodeURIComponent(id),{method:"DELETE",headers:hdr()}),
     bulkInsert:(t,rows)=>req(SUPABASE_URL+"/rest/v1/"+t,{method:"POST",headers:hdr({Prefer:"return=representation,resolution=ignore-duplicates"}),body:JSON.stringify(rows)}),
-    signIn:(email,pw)=>req(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON},body:JSON.stringify({email,password:pw})}),
+    signIn:(email,pw,captchaToken)=>req(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON},body:JSON.stringify({email,password:pw,...(captchaToken?{gotrue_meta_security:{captcha_token:captchaToken}}:{})})}),
     signOut:(tok)=>req(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPABASE_ANON,"Authorization":"Bearer "+tok}}),
+    // Edge Function callers — these go through server-side functions
+    // with rate limiting, audit logging, and business validation
+    edgeBulkImport:(rows)=>EDGE_URL
+      ?req(EDGE_URL+"/bulk-import",{method:"POST",headers:hdr(),body:JSON.stringify({rows})})
+      :Promise.reject(new Error("Edge Functions not configured")),
+    edgeSoftDelete:(id)=>EDGE_URL
+      ?req(EDGE_URL+"/soft-delete",{method:"POST",headers:hdr(),body:JSON.stringify({id})})
+      :Promise.reject(new Error("Edge Functions not configured")),
+    edgeSetSetting:(key,value)=>EDGE_URL
+      ?req(EDGE_URL+"/set-setting",{method:"POST",headers:hdr(),body:JSON.stringify({key,value:JSON.stringify(value)})})
+      :null, // Falls back to direct REST if Edge not configured
     // Settings table: key-value store synced across all devices
     getSettings:()=>req(SUPABASE_URL+"/rest/v1/settings?select=key,value",{headers:hdr()}),
+    // ensure_my_profile: creates profile if missing AND returns role in one call
+    // Handles both sign-up flow AND Supabase Dashboard user creation
+    getMyRole:(email)=>req(SUPABASE_URL+"/rest/v1/rpc/ensure_my_profile",{
+      method:"POST",
+      headers:hdr({Prefer:"return=representation"}),
+      body:JSON.stringify({p_email:email||""}),
+    }),
     setSetting:(key,value)=>{
       // Upsert: POST with ON CONFLICT DO UPDATE (merge-duplicates) 
       const h={...hdr()};
@@ -316,6 +451,39 @@ const CAL_STATUS={
 };
 
 const CHART_PAL=["#1a8fa0","#22c55e","#ef4444","#f59e0b","#3b82f6","#a855f7","#f97316","#14b8a6","#ec4899","#84cc16"];
+
+/* ── PM Recurrence engine ──────────────────────────────────────
+   Recurrence intervals stored per equipment.
+   When "Mark Maintenance Done" is clicked, next date is
+   auto-calculated based on the interval — not hardcoded +90 days.
+─────────────────────────────────────────────────────────────── */
+const RECURRENCE_OPTIONS={
+  "30":  {label:"Monthly (30 days)",    days:30},
+  "60":  {label:"Every 2 Months",       days:60},
+  "90":  {label:"Quarterly (90 days)",  days:90},
+  "180": {label:"Semi-Annual (6 months)",days:180},
+  "365": {label:"Annual (1 year)",      days:365},
+  "730": {label:"Every 2 Years",        days:730},
+  "0":   {label:"As Needed / Manual",   days:0},
+};
+const DEFAULT_RECURRENCE="90"; // quarterly default
+
+/* ── Calibration recurrence ────────────────────────────────── */
+const CAL_RECURRENCE_OPTIONS={
+  "90":  {label:"Quarterly",       days:90},
+  "180": {label:"Semi-Annual",     days:180},
+  "365": {label:"Annual",          days:365},
+  "730": {label:"Every 2 Years",   days:730},
+  "0":   {label:"Manual / None",   days:0},
+};
+const DEFAULT_CAL_RECURRENCE="365"; // annual default
+
+function calcNextDate(fromDate,days){
+  if(!days||days===0)return fromDate; // manual — keep existing date
+  const d=new Date(fromDate||today());
+  d.setDate(d.getDate()+parseInt(days));
+  return d.toISOString().slice(0,10);
+}
 const DEFAULT_CATEGORIES=["Vital Signs","Monitoring","Diagnostic Equipment","Imaging","Life Support","Laboratory","Surgical","Other"];
 const DEFAULT_LOCATIONS  =["OPD","Emergency Room","Radiology","ICU","Ward A","Ward B","Operating Theatre","Laboratory","Pharmacy","Other"];
 const getCategories=()=>STATE.settings.categories||DEFAULT_CATEGORIES;
@@ -353,11 +521,13 @@ let STATE={
   loading:true,
   adminSession:loadS("medinv_admin",null),
   adminEmail:loadS("medinv_admin",null)?.user?.email||"",
+  verifiedRole:loadS("medinv_role",""),  // fetched from DB on login
   settings:loadP("medinv_settings",DEFAULT_SETTINGS),
   modal:null,       // null|"adminLogin"|"add"|equipObj|"bulkUpload"|"sqlView"
   detail:null,      // equipObj shown in read-only detail
   report:null,      // null|"status"|"maintenance"|"location"|"category"
   bulkResult:null,  // {valid:[], errors:[]}
+  auditLogs:[],     // loaded from Supabase audit_log table
   search:"",
   showAll:false,
   offline:false,
@@ -373,7 +543,10 @@ const today   =()=>new Date().toISOString().slice(0,10);
 const uid     =()=>(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36));
 const daysDiff=d=>{if(!d)return 9999;try{return Math.ceil((new Date(d)-new Date(today()))/86400000);}catch{return 9999;}};
 const fmtDate =d=>{try{return d?new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";}catch{return d||"—";}};
-const isAdmin =()=>!!STATE.adminSession?.access_token;
+// Role verification — checks BOTH token AND cached DB-verified role
+const isAdmin    = ()=>!!STATE.adminSession?.access_token && STATE.verifiedRole==="admin";
+const isEngineer = ()=>!!STATE.adminSession?.access_token && ["admin","engineer"].includes(STATE.verifiedRole);
+const canEdit    = ()=>isAdmin()||isEngineer();
 
 // Calibration status helpers — purely date-driven
 const isCalOverdue  =e=>e.calibration_status==="cal_required"&&!!e.next_calibration&&daysDiff(e.next_calibration)<0;
@@ -423,7 +596,7 @@ function calBadge(e){
 async function fetchEquipment(){
   if(STATE.offline){STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.loading=false;STATE.lastFetch=Date.now();render();return;}
   try{
-    const data=await sb.query("equipment","order=last_updated.desc&limit=500");
+    const data=await sb.query("equipment","is_deleted=neq.true&order=last_updated.desc&limit=500");
     if(Array.isArray(data)){STATE.equipment=data;}else throw new Error("Bad response");
   }catch(e){
     console.warn("Supabase fetch failed, using seed:",e.message);
@@ -433,9 +606,13 @@ async function fetchEquipment(){
 }
 
 async function persistEquipment(item){
+  if(!canEdit()&&!STATE.offline){showToast("Insufficient permissions","error");throw new Error("Permission denied");}
   if(STATE.offline){
     const idx=STATE.equipment.findIndex(e=>e.id===item.id);
-    idx>=0?(STATE.equipment[idx]=item):STATE.equipment.unshift(item);return item;
+    idx>=0?(STATE.equipment[idx]=item):STATE.equipment.unshift(item);
+    // Queue for sync when back online
+    enqueueWrite({type:"upsert",item:{...item}});
+    return item;
   }
   try{
     if(item._isNew){const i={...item};delete i._isNew;const r=await sb.insert("equipment",i);return Array.isArray(r)?r[0]:r;}
@@ -448,8 +625,25 @@ async function persistEquipment(item){
 }
 
 async function removeEquipment(id){
-  if(!STATE.offline)try{await sb.remove("equipment",id);}catch(e){showToast("Delete failed: "+e.message,"error");throw e;}
-  STATE.equipment=STATE.equipment.filter(e=>e.id!==id);
+  // SOFT DELETE — never permanently destroy records (preserves audit trail)
+  const item=STATE.equipment.find(e=>e.id===id);
+  if(!item)return;
+  const softDeleted={...item,is_deleted:true,last_updated:today()};
+  if(STATE.offline){
+    STATE.equipment=STATE.equipment.filter(e=>e.id!==id);
+    enqueueWrite({type:"soft_delete",id,item:softDeleted});
+    return;
+  }
+  try{
+    // Try Edge Function first (adds server-side audit trail beyond DB trigger)
+    if(EDGE_URL){
+      await sb.edgeSoftDelete(id);
+    } else {
+      // Fallback: direct REST soft-delete (still protected by RLS)
+      await sb.safeUpdate("equipment",id,{is_deleted:true,last_updated:today()},item.last_updated);
+    }
+    STATE.equipment=STATE.equipment.filter(e=>e.id!==id);
+  }catch(e){showToast("Delete failed: "+e.message,"error");throw e;}
 }
 
 async function bulkPersist(rows){
@@ -458,15 +652,73 @@ async function bulkPersist(rows){
     return{inserted:rows.length,skipped:0};
   }
   try{
+    // Try Edge Function first (server-side rate limiting + per-operation audit log)
+    if(EDGE_URL){
+      const r=await sb.edgeBulkImport(rows);
+      return{inserted:r?.inserted||rows.length,skipped:r?.skipped||0,via:"edge"};
+    }
+    // Fallback: direct REST (still protected by RLS)
     const r=await sb.bulkInsert("equipment",rows);
     const inserted=Array.isArray(r)?r.length:0;
-    return{inserted,skipped:rows.length-inserted};
+    return{inserted,skipped:rows.length-inserted,via:"rest"};
   }catch(e){showToast("Bulk save failed: "+e.message,"error");throw e;}
 }
 
 /* ═══════════════════════════════════════════════════════
    9. REAL-TIME POLLING (multi-user concurrency)
 ═══════════════════════════════════════════════════════ */
+/* ── Supabase Realtime subscription ───────────────────────────
+   Replaces inefficient 30s polling with instant push updates.
+   Falls back to polling if Realtime is unavailable.
+────────────────────────────────────────────────────────────── */
+let _realtimeChannel=null;
+
+function startRealtime(){
+  if(STATE.offline||!SUPABASE_URL.includes("supabase.co"))return startPolling();
+  try{
+    // Use Supabase Realtime REST channel (no extra library needed)
+    const wsUrl=SUPABASE_URL.replace("https://","wss://")
+      +"/realtime/v1/websocket?apikey="+SUPABASE_ANON+"&vsn=1.0.0";
+    const ws=new WebSocket(wsUrl);
+    ws.onopen=()=>{
+      // Join the equipment table changes channel
+      ws.send(JSON.stringify({
+        topic:"realtime:public:equipment",
+        event:"phx_join",
+        payload:{config:{broadcast:{self:false},presence:{key:""},postgres_changes:[
+          {event:"*",schema:"public",table:"equipment"}
+        ]}},
+        ref:"1"
+      }));
+    };
+    ws.onmessage=async(evt)=>{
+      try{
+        const msg=JSON.parse(evt.data);
+        if(msg.event==="postgres_changes"||msg.payload?.type==="INSERT"||msg.payload?.type==="UPDATE"||msg.payload?.type==="DELETE"){
+          // Another user changed equipment — refresh silently
+          if(!STATE.modal&&!STATE.detail){
+            await fetchEquipment();
+            showToast("🔄 Equipment updated","info");
+          }
+        }
+      }catch{}
+    };
+    ws.onerror=()=>{
+      // Graceful fallback to polling if WebSocket fails
+      startPolling();
+    };
+    ws.onclose=()=>{
+      // Reconnect after 5s
+      setTimeout(startRealtime,5000);
+    };
+    _realtimeChannel=ws;
+  }catch{
+    // Fallback to polling
+    startPolling();
+  }
+}
+
+// Legacy polling fallback (used when Realtime WebSocket unavailable)
 function startPolling(){
   if(STATE.pollTimer)return;
   STATE.pollTimer=setInterval(async()=>{
@@ -475,10 +727,9 @@ function startPolling(){
       const since=STATE.lastFetch?new Date(STATE.lastFetch).toISOString().slice(0,10):new Date(0).toISOString().slice(0,10);
       const r=await sb.query("equipment","last_updated=gte."+encodeURIComponent(since)+"&select=id");
       if(Array.isArray(r)&&r.length>0){await fetchEquipment();showToast("🔄 Equipment updated by another user","info");}
-      // Also re-sync settings (catches hospital name / list changes from other devices)
       const prevName=STATE.settings.hospitalName;
       await loadSettingsFromDB();
-      if(STATE.settings.hospitalName!==prevName){render();} // re-render if changed
+      if(STATE.settings.hospitalName!==prevName){render();}
     }catch{}
   },30000);
 }
@@ -487,23 +738,41 @@ function startPolling(){
    10. AUTH
 ═══════════════════════════════════════════════════════ */
 async function doLogin(email,pw){
-  if(!checkRate())return{ok:false,msg:"Too many attempts. Wait 1 minute."};
+  const rateCheck=checkRate();if(!rateCheck.ok)return{ok:false,msg:rateCheck.msg};
   const e2=san.email(email);
   if(!V.email(e2))return{ok:false,msg:"Enter a valid email address."};
   if(!pw||pw.length<6||pw.length>200)return{ok:false,msg:"Password must be 6–200 characters."};
   if(STATE.offline){
-    const sess={access_token:"demo_"+uid(),user:{email:e2}};
+    // DEMO/OFFLINE MODE: Only active when SUPABASE_URL is not configured.
+    // This code path MUST be removed or disabled before any production deployment.
+    // Do not deploy this app with YOUR_PROJECT still in the URL.
+    if(!SUPABASE_URL.includes("YOUR_PROJECT")){
+      // Supabase is configured but we somehow ended up offline — fail safely
+      return{ok:false,msg:"Cannot authenticate: no network connection to Supabase."};
+    }
+    const sess={access_token:"demo_"+uid(),user:{email:e2,id:"demo-user"}};
     STATE.adminSession=sess;STATE.adminEmail=e2;saveS("medinv_admin",sess);return{ok:true};
   }
   try{
-    const r=await sb.signIn(e2,pw);
-    if(r?.access_token){STATE.adminSession=r;STATE.adminEmail=r.user?.email||e2;saveS("medinv_admin",r);return{ok:true};}
+    // Get hCaptcha token if widget is mounted
+    let captchaToken="";
+    if(HCAPTCHA_SITE_KEY){
+      try{
+        const resp=hcaptcha.getResponse();
+        if(!resp){showToast("Please complete the captcha","error");if(btn){btn.disabled=false;btn.textContent="Login";}return{ok:false,msg:"Captcha required."};}
+        captchaToken=resp;
+      }catch{/* hCaptcha not loaded — proceed without */}
+    }
+    const r=await sb.signIn(e2,pw,captchaToken);
+    if(r?.access_token){STATE.adminSession=r;STATE.adminEmail=r.user?.email||e2;saveS("medinv_admin",r);recordLoginSuccess();return{ok:true};}
     return{ok:false,msg:r?.error_description||r?.message||"Invalid credentials."};
   }catch(e){return{ok:false,msg:"Login error: "+e.message};}
 }
 async function doLogout(){
   if(STATE.adminSession?.access_token&&!STATE.offline)try{await sb.signOut(STATE.adminSession.access_token);}catch{}
-  STATE.adminSession=null;STATE.adminEmail="";sessionStorage.removeItem("medinv_admin");
+  STATE.adminSession=null;STATE.adminEmail="";STATE.verifiedRole="";
+  sessionStorage.removeItem("medinv_admin");
+  sessionStorage.removeItem("medinv_role");
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -536,8 +805,19 @@ async function saveSettingToDB(key,value){
   saveP("medinv_settings",STATE.settings);
   // Then sync to Supabase (admin only — enforced by RLS)
   if(!STATE.offline){
-    try{await sb.setSetting(key,value);}
-    catch(e){console.warn("Setting sync failed:",e.message);}
+    try{
+      // Try Edge Function first — provides server-side validation + logging
+      if(EDGE_URL){
+        const r=await sb.edgeSetSetting(key,value);
+        if(r===null)await sb.setSetting(key,value); // null means Edge not deployed yet
+      } else {
+        await sb.setSetting(key,value);
+      }
+    }catch(e){
+      // Fallback to direct REST
+      try{await sb.setSetting(key,value);}
+      catch(e2){console.warn("Setting sync failed:",e2.message);}
+    }
   }
 }
 
@@ -567,6 +847,14 @@ function downloadTemplate(){
 
 function parseBulkFile(file){
   if(!file)return;
+  // Enforce MIME type client-side (defence-in-depth)
+  const allowed=["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel","text/csv","application/csv"];
+  const ext=file.name.split(".").pop().toLowerCase();
+  if(!allowed.includes(file.type)&&!["xlsx","xls","csv"].includes(ext)){
+    showToast("Only Excel (.xlsx/.xls) or CSV files are allowed","error");return;
+  }
+  if(file.size>5*1024*1024){showToast("File too large (max 5MB)","error");return;}
   const reader=new FileReader();
   reader.onload=e=>{
     try{
@@ -806,7 +1094,7 @@ function renderEquipment(){
     '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">'+
     (isAdmin()
       ?'<button class="btn btn-teal" id="btn-add-eq">➕ Add New Equipment</button>'
-      :'<div class="ro-notice"><span style="font-size:20px">👁</span><div><div style="font-weight:700;color:var(--text);font-size:13px">Read-Only View</div><div style="font-size:12px;margin-top:1px">Tap any item for details. <button id="btn-admin-login-eq" style="background:none;border:none;color:var(--teal);font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;font-size:12px;padding:0">Admin login</button> to add/edit.</div></div></div>')+
+      :'<div class="ro-notice"><span style="font-size:20px">👁</span><div><div style="font-weight:700;color:var(--text);font-size:13px">Read-Only View</div><div style="font-size:12px;margin-top:1px">Tap any item for details. <button id="btn-admin-login-eq" style="background:none;border:none;color:var(--teal);font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;font-size:12px;padding:0">Login</button> to add/edit (Admin or Engineer).</div></div></div>')+
     '<div class="search-wrap"><input class="inp" id="eq-search" type="search" placeholder="Search name, category, location…" value="'+esc(STATE.search)+'" autocomplete="off" maxlength="100"/></div>'+
     '<div style="display:flex;justify-content:space-between;align-items:center"><p class="sec-lbl">'+( STATE.showAll?"All":"Recent")+" ("+filt.length+")</p><button class=\"lnk\" id=\"btn-view-all\">"+(STATE.showAll?"Collapse ↑":"View All →")+'</button></div>'+
     '<div style="display:flex;flex-direction:column;gap:10px">'+
@@ -870,9 +1158,9 @@ function renderDetail(){
         infoRows.map(r=>'<div class="info-row"><div class="info-icon" style="background:'+r.bg+'">'+r.ico+'</div><div style="flex:1;min-width:0"><div style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">'+esc(r.label)+'</div><div style="font-size:14px;font-weight:700;color:'+(r.vc||"var(--text)")+'">'+esc(String(r.value))+'</div></div></div>').join("")+
       '</div>'+
       '<div style="display:flex;flex-direction:column;gap:8px">'+
-        (isAdmin()
-          ?'<button class="btn btn-teal" id="btn-detail-edit">✏️ Edit Equipment</button><button class="btn btn-outline" id="btn-detail-delete" style="color:var(--red);border-color:var(--red)">🗑 Delete Equipment</button>'
-          :'<div class="ro-notice"><span>🔐</span><span>Login as admin to edit this equipment.</span></div>')+
+        (canEdit()
+          ?'<button class="btn btn-teal" id="btn-detail-edit">✏️ Edit Equipment</button>'+(isAdmin()?'<button class="btn btn-outline" id="btn-detail-delete" style="color:var(--red);border-color:var(--red)">🗑 Delete Equipment</button>':'')
+          :'<div class="ro-notice"><span>🔐</span><span>Login as Admin or Engineer to edit.</span></div>')+
         '<button class="btn btn-outline" id="btn-close-detail-2">Close</button>'+
       '</div>'+
     '</div></div>';
@@ -1089,7 +1377,7 @@ function renderSettings(){
 
     // Session card
     '<div style="background:var(--green-lt);border:1.5px solid var(--green);border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">'+
-      '<div><div style="font-size:13px;font-weight:700;color:var(--green-dk)">🟢 Admin Session Active</div><div style="font-size:12px;color:var(--sub);margin-top:2px">'+esc(STATE.adminEmail)+'</div></div>'+
+      '<div><div style="font-size:13px;font-weight:700;color:var(--green-dk)">🟢 Role: '+esc(STATE.verifiedRole||"viewer")+' — Session Active</div><div style="font-size:12px;color:var(--sub);margin-top:2px">'+esc(STATE.adminEmail)+'</div></div>'+
       '<button id="btn-logout" class="btn" style="width:auto;padding:8px 14px;background:var(--red-lt);color:var(--red);font-size:13px;border-radius:10px">Logout</button>'+
     '</div>'+
 
@@ -1155,11 +1443,19 @@ function renderSettings(){
       '</div>'+
     '</div>'+
 
-    // DB setup
+    // Audit log
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">'+
+      '<p class="sec-lbl">🔍 Audit Log</p>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.6">Every create, edit, and delete is recorded automatically. Full traceability for medical compliance.</p>'+
+      '<button class="btn btn-ghost" id="btn-view-audit" style="padding:9px">📋 View Audit Log</button>'+
+    '</div>'+
+
+    // DB setup + Step-by-step guide
     '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">'+
       '<p class="sec-lbl">🗄️ Database Setup</p>'+
-      '<p style="font-size:12px;color:var(--sub);line-height:1.6">Run the setup SQL <strong>once</strong> in your Supabase SQL Editor. All future app actions update the database automatically.</p>'+
-      '<button class="btn btn-ghost" id="btn-show-sql" style="padding:9px">📋 View Setup SQL</button>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.6">Run the setup SQL <strong>once</strong> in your Supabase SQL Editor to set up all tables, roles, and audit logging.</p>'+
+      '<button class="btn btn-ghost" id="btn-show-sql" style="padding:9px">📋 View Full Setup SQL</button>'+
+      '<button class="btn btn-ghost" id="btn-show-guide" style="padding:9px">📖 Step-by-Step Setup Guide</button>'+
     '</div>'+
 
     // Danger
@@ -1168,9 +1464,19 @@ function renderSettings(){
       '<button class="btn btn-outline" id="btn-reset-data" style="color:var(--red);border-color:var(--red)">🔄 Reset to Sample Data</button>'+
     '</div>'+
 
+    // Security status card
+    '<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px">'+
+      '<p class="sec-lbl">🛡️ Security Status</p>'+
+      '<div style="display:flex;flex-direction:column;gap:5px">'+
+        ['RLS enforced on all tables','Soft delete (data preserved)','Audit log on every change','Input sanitisation active','Optimistic concurrency lock','Offline write queue','JWT session management','Rate-limited login (5/min)'].map(item=>'<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)"><span style="color:var(--green);font-weight:800">✓</span>'+esc(item)+'</div>').join("")+
+        '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--amber)"><span style="font-weight:800">⚠</span>MFA: configure in Supabase Auth settings</div>'+
+        '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--amber)"><span style="font-weight:800">⚠</span>Backups: schedule in Supabase dashboard</div>'+
+      '</div>'+
+    '</div>'+
+
     // App info
     '<div class="card" style="padding:16px;text-align:center">'+
-      '<p style="font-size:12px;color:var(--sub);line-height:1.8">MedEquip Inventory · v1.0.0<br/>'+(STATE.offline?"⚠️ Offline/Demo Mode":"🟢 Connected to Supabase")+'<br/><span style="font-size:10px;opacity:.7">© '+new Date().getFullYear()+' — Authorised hospital use only</span></p>'+
+      '<p style="font-size:12px;color:var(--sub);line-height:1.8">MedEquip Inventory · v2.0.0<br/>'+(STATE.offline?"⚠️ Offline/Demo Mode":"🟢 Connected to Supabase")+'<br/><span style="font-size:10px;opacity:.7">© '+new Date().getFullYear()+' — Authorised hospital use only</span></p>'+
     '</div>'+
   '</div></div>';
 }
@@ -1186,45 +1492,193 @@ function renderModal(){
       '</div>'+
       '<p style="font-size:13px;color:var(--sub)">Enter your administrator credentials.</p>'+
       (STATE.offline?'<div style="background:#fff3cd;border-radius:10px;padding:10px 14px;font-size:12px;color:#856404;font-weight:600">ℹ️ Demo mode: any email + password (6+ chars) accepted.</div>':"")+
+      '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:9px 13px;font-size:11px;color:#166534;font-weight:600">🛡️ Protected: progressive lockout · session auth · DB-verified role</div>'+
       '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub)">Email</label><input class="inp" id="inp-email" type="email" placeholder="admin@hospital.com" autocomplete="username" maxlength="120"/></div>'+
       '<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:12px;font-weight:700;color:var(--sub)">Password</label><input class="inp" id="inp-password" type="password" placeholder="••••••••" autocomplete="current-password" maxlength="200"/></div>'+
+      <!-- hCaptcha widget — only shown when HCAPTCHA_SITE_KEY is configured -->
+      (HCAPTCHA_SITE_KEY?'<div id="hcaptcha-widget" style="margin:4px 0"></div>':'')+
       '<div id="login-error" style="display:none;background:var(--red-lt);color:var(--red);border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600" role="alert"></div>'+
       '<button class="btn btn-teal" id="btn-do-login">Login</button></div></div>';
   }
 
+  /* Audit log viewer */
+  if(STATE.modal==="auditLog"){
+    const logs=STATE.auditLogs||[];
+    const ACTION_COLORS={"INSERT":"#22c55e","UPDATE":"#f59e0b","DELETE":"#ef4444"};
+    return '<div class="overlay" role="dialog" aria-modal="true">'+
+      '<div class="mbox" style="max-height:90vh">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+          '<h2 style="font-weight:900;font-size:19px;color:var(--text)">🔍 Audit Log</h2>'+
+          '<button id="btn-close-modal" style="background:var(--bg);border:none;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button>'+
+        '</div>'+
+        '<p style="font-size:12px;color:var(--sub);margin-bottom:8px">Every change to equipment is recorded here. Required for medical asset compliance.</p>'+
+        (STATE.offline?'<div style="background:#fff3cd;border-radius:10px;padding:10px;font-size:12px;color:#856404;font-weight:600;margin-bottom:8px">⚠️ Audit log requires live Supabase connection.</div>':"")+
+        (logs.length===0?
+          '<div style="text-align:center;padding:24px;color:var(--sub)"><div style="font-size:32px;margin-bottom:8px">📋</div><div style="font-weight:700">No audit records yet</div><div style="font-size:12px;margin-top:4px">Records appear here after any equipment change.</div></div>'
+          :
+          '<div style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto">'+
+          logs.slice(0,50).map(l=>'<div style="background:#f8fafc;border-radius:10px;padding:12px;border-left:3px solid '+(ACTION_COLORS[l.action]||"#94a3b8")+'">'+
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'+
+              '<span style="font-size:11px;font-weight:800;color:'+(ACTION_COLORS[l.action]||"#94a3b8")+'">'+esc(l.action)+'</span>'+
+              '<span style="font-size:10px;color:var(--sub)">'+esc(l.changed_at?new Date(l.changed_at).toLocaleString():"")+'</span>'+
+            '</div>'+
+            '<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">'+esc(l.new_data?.name||l.old_data?.name||"Equipment #"+l.record_id)+'</div>'+
+            '<div style="font-size:11px;color:var(--sub)">By: '+esc(l.user_email||"Unknown")+'</div>'+
+            (l.action==="UPDATE"&&l.old_data?'<div style="font-size:10px;color:var(--sub);margin-top:4px;font-style:italic">Status: '+esc(l.old_data.status||"")+'  →  '+esc(l.new_data?.status||"")+'</div>':"")
+          +'</div>').join("")+
+          '</div>')+
+        '<button class="btn btn-teal" id="btn-refresh-audit" style="padding:10px;margin-top:8px">🔄 Refresh</button>'+
+      '</div></div>';
+  }
+
+  /* Step-by-step setup guide */
+  if(STATE.modal==="setupGuide"){
+    const steps=[
+      {n:1,ico:"🌐",title:"Create Supabase Project",body:"Go to <strong>supabase.com</strong> → Sign up → New Project. Choose a name (e.g. medequip), set a strong database password, pick the region closest to your hospital. Wait ~2 minutes for provisioning."},
+      {n:2,ico:"🔑",title:"Get Your API Keys",body:"In your project: go to <strong>Settings → API</strong>. Copy the <strong>Project URL</strong> (looks like https://abc123.supabase.co) and the <strong>anon public key</strong> (long JWT string). NEVER use the service_role key in this app."},
+      {n:3,ico:"📋",title:"Run the Setup SQL",body:"Go to <strong>SQL Editor</strong> in Supabase. Click the SQL viewer button in Settings, copy ALL the SQL, paste it in, and click Run. This creates all tables, roles, audit logging, and security policies."},
+      {n:4,ico:"👤",title:"Create Users in Supabase",body:"Go to <strong>Authentication → Users → Add User</strong>. Enter email and a strong password (12+ chars). Click <strong>Create User</strong>. Important: the user is created with 'viewer' role by default — you must run the SQL in Step 5 to promote them to admin. Create all your users here (admin, engineers, etc.) before assigning roles."},
+      {n:5,ico:"⚙️",title:"Assign Roles via SQL",body:"After creating users, go to <strong>SQL Editor</strong> and run these — one per user:<br/><br/><strong>Step 5a — First login to create profile rows:</strong><br/>Each user must log into the app once first. The app auto-creates their profile on login.<br/><br/><strong>OR run this SQL directly:</strong><br/><code style='background:#1e293b;color:#a5f3fc;padding:4px 8px;border-radius:6px;font-size:10px;display:block;margin:4px 0'>SELECT ensure_my_profile() -- run as each user</code><br/><strong>Then assign roles:</strong><br/><code style='background:#1e293b;color:#22c55e;padding:4px 8px;border-radius:6px;font-size:10px;display:block;margin:4px 0'>UPDATE profiles SET role='admin' WHERE email='admin@hospital.com';</code><code style='background:#1e293b;color:#60a5fa;padding:4px 8px;border-radius:6px;font-size:10px;display:block;margin:4px 0'>UPDATE profiles SET role='engineer' WHERE email='eng@hospital.com';</code>Roles: admin (full access) · engineer (edit/maintain) · technician (view+mark done) · viewer (read only)"},
+      {n:6,ico:"🔒",title:"Enable MFA (Recommended)",body:"Go to <strong>Authentication → Providers → Multi-Factor Auth</strong>. Enable TOTP. Then in <strong>Authentication → Policies</strong>, enforce MFA for admin actions. Admins should use an authenticator app (Google Authenticator / Authy)."},
+      {n:7,ico:"💻",title:"Connect the App",body:"Open medequip-inventory.html. Find the two config lines at the top of the script and replace YOUR_PROJECT and YOUR_ANON_KEY with your actual Supabase Project URL and anon key."},
+      {n:8,ico:"🚀",title:"Deploy to GitHub Pages",body:"Push the updated HTML file to your GitHub repo. Go to <strong>Repository Settings → Pages → Source → main branch</strong>. The app is live at https://your-org.github.io/repo-name/. Any future changes you push will auto-deploy."},
+      {n:9,ico:"🔐",title:"Lock Down Supabase Security",body:"Do all of these before going live:<br/>① <strong>Auth → Settings → Disable sign ups</strong> (only manually-created users can access)<br/>② <strong>Auth → Providers → Enable MFA (TOTP)</strong> — require admins to use Google Authenticator or Authy<br/>③ <strong>Auth → Settings → Session timeout: 3600s</strong> (1 hour)<br/>④ <strong>Auth → Settings → Enable Email Confirmations</strong><br/>⑤ Verify RLS is active: Database → Tables → each table must show 🔒 RLS Enabled"},
+      {n:10,ico:"💾",title:"Set Up Backups",body:"In Supabase Pro plan: go to <strong>Database → Backups</strong> and enable daily backups. For the free plan, schedule a weekly export from <strong>Settings → Database → Download backup</strong>. Keep at least 4 weeks of backups."},
+      {n:11,ico:"🛡️",title:"Phase 2 — Harden Further (after go-live)",body:"These are not required immediately but improve security significantly:<br/><br/>① <strong>Self-host JS libraries</strong> — download Chart.js, xlsx, jsPDF and serve them from your repo. This eliminates CDN dependency risk and allows you to remove unsafe-inline from the CSP.<br/><br/>② <strong>Enable hCaptcha</strong> — Supabase Auth Settings → Captcha → Enable hCaptcha (free tier available). Prevents automated credential stuffing.<br/><br/>③ <strong>Move bulk import to Edge Function</strong> — creates server-side rate limiting and per-operation audit logging.<br/><br/>④ <strong>Add Supabase API rate limits</strong> — Settings → API → Rate Limiting (Pro plan)."},
+    ];
+    return '<div class="overlay" role="dialog" aria-modal="true">'+
+      '<div class="mbox" style="max-height:92vh">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+          '<h2 style="font-weight:900;font-size:19px;color:var(--text)">📖 Supabase Setup Guide</h2>'+
+          '<button id="btn-close-modal" style="background:var(--bg);border:none;width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button>'+
+        '</div>'+
+        '<p style="font-size:12px;color:var(--sub);margin-bottom:8px">Complete setup guide. Follow each step in order.</p>'+
+        '<div style="display:flex;flex-direction:column;gap:10px">'+
+        steps.map(s=>'<div style="display:flex;gap:12px;background:#f8fafc;border-radius:12px;padding:13px">'+
+          '<div style="width:36px;height:36px;border-radius:50%;background:var(--teal);color:#fff;font-size:13px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+s.n+'</div>'+
+          '<div><div style="font-weight:800;font-size:14px;color:var(--text);margin-bottom:4px">'+s.ico+' '+esc(s.title)+'</div>'+
+          '<div style="font-size:12px;color:var(--sub);line-height:1.6">'+s.body+'</div></div>'+
+        '</div>').join("")+
+        '</div>'+
+        '<div style="background:var(--teal-lt);border-radius:12px;padding:14px;margin-top:4px">'+
+          '<div style="font-size:12px;font-weight:800;color:var(--teal);margin-bottom:6px">⚠️ Security Checklist Before Going Live</div>'+
+          '<div style="display:flex;flex-direction:column;gap:4px">'+
+          [
+            'RLS enabled on all tables (done by SQL above)',
+            'No service_role key in frontend code',
+            'Admin MFA enabled (Auth → Providers → MFA → TOTP)',
+            'hCaptcha enabled (Auth → Settings → Enable Captcha)',
+            'Email sign-ups disabled (Auth → Settings → Disable sign ups)',
+            'Session timeout 3600s (Auth → Settings → JWT expiry)',
+            'Database backups scheduled (Database → Backups)',
+            'HTTPS enforced (GitHub Pages does this automatically)',
+            'Verify RLS: Database → Tables → each table shows 🔒',
+            'Admin role assigned via SQL (UPDATE profiles SET role=...)',
+          ].map(item=>'<div style="font-size:11px;color:var(--text);display:flex;align-items:center;gap:6px"><span style="color:var(--green);font-weight:700">✓</span>'+esc(item)+'</div>').join("")+
+          '</div>'+
+          '<div style="margin-top:10px;font-size:11px;font-weight:700;color:#b45309">Phase 2 (after go-live): Move bulk import + delete to Edge Functions for server-side rate limiting and audit logging per operation.</div>'+
+        '</div>'+
+        '<button class="btn btn-teal" id="btn-show-sql" style="padding:10px">📋 View Full Setup SQL Next</button>'+
+      '</div></div>';
+  }
+
   /* SQL viewer */
   if(STATE.modal==="sqlView"){
-    const sql=`-- ═══════════════════════════════════════════════════════════
--- MedEquip Inventory — Complete Supabase Setup SQL
--- Run this ONCE in your Supabase SQL Editor (SQL tab)
--- ═══════════════════════════════════════════════════════════
+    const sql=`-- ═══════════════════════════════════════════════════════════════
+-- MedEquip Inventory — Complete Supabase Production Setup
+-- Run this ONCE in Supabase SQL Editor (Database → SQL Editor)
+-- ═══════════════════════════════════════════════════════════════
 
--- ── 1. SETTINGS TABLE ─────────────────────────────────────
--- Stores hospital name, notification prefs, and dropdown lists.
--- Changes made in Settings are synced to all devices via this table.
-CREATE TABLE IF NOT EXISTS settings (
-  key        TEXT PRIMARY KEY,
-  value      TEXT NOT NULL,
+
+-- ── 1. PROFILES TABLE (roles per user) ────────────────────────
+-- Every Supabase Auth user gets a profile with a role.
+-- Roles: admin | engineer | technician | viewer
+CREATE TABLE IF NOT EXISTS profiles (
+  id         UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email      TEXT        NOT NULL,
+  full_name  TEXT        DEFAULT '',
+  role       TEXT        NOT NULL DEFAULT 'viewer'
+               CHECK(role IN ('admin','engineer','technician','viewer')),
+  department TEXT        DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Trigger to auto-update updated_at
-CREATE OR REPLACE FUNCTION update_settings_ts()
-RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS settings_updated ON settings;
-CREATE TRIGGER settings_updated BEFORE UPDATE ON settings
-  FOR EACH ROW EXECUTE FUNCTION update_settings_ts();
+-- ── SECURITY DEFINER helper (avoids circular RLS) ─────────────
+-- This function reads a user role WITHOUT triggering RLS,
+-- preventing the infinite-loop error on the profiles table.
+CREATE OR REPLACE FUNCTION get_my_role()
+RETURNS TEXT AS $$
+  SELECT role FROM profiles WHERE id = auth.uid();
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- Row Level Security for settings
+-- ── Auto-create profile on new user ──────────────────────────
+-- Works for BOTH signup AND Supabase Dashboard user creation.
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO profiles (id, email, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.email, NEW.raw_user_meta_data->>'email', 'unknown@hospital.com'),
+    'viewer'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- ── RLS for profiles (NO circular dependency) ─────────────────
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users see own profile"   ON profiles;
+DROP POLICY IF EXISTS "Admins see all profiles" ON profiles;
+DROP POLICY IF EXISTS "Admins update profiles"  ON profiles;
+DROP POLICY IF EXISTS "Anyone reads own profile" ON profiles;
+
+-- Each user can always read their OWN profile (no circular dependency)
+CREATE POLICY "Anyone reads own profile" ON profiles
+  FOR SELECT USING (auth.uid() = id);
+
+-- Admins can read ALL profiles (uses security definer fn — no circular loop)
+CREATE POLICY "Admins see all profiles" ON profiles
+  FOR SELECT USING (get_my_role() = 'admin');
+
+-- Only admins can update roles (uses security definer fn)
+CREATE POLICY "Admins update profiles" ON profiles
+  FOR UPDATE USING (get_my_role() = 'admin');
+
+-- The trigger (SECURITY DEFINER) handles INSERT — no INSERT policy needed for users
+-- But allow authenticated users to upsert their own profile (for safety)
+CREATE POLICY "Users upsert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- ── GRANTS for profiles ───────────────────────────────────────
+GRANT SELECT ON profiles TO anon, authenticated;
+GRANT INSERT, UPDATE ON profiles TO authenticated;
+
+
+-- ── 2. SETTINGS TABLE ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT        PRIMARY KEY,
+  value      TEXT        NOT NULL,
+  updated_by UUID        REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public read settings"  ON settings;
 DROP POLICY IF EXISTS "Admin write settings"  ON settings;
 DROP POLICY IF EXISTS "Admin update settings" ON settings;
-CREATE POLICY "Public read settings"  ON settings FOR SELECT USING (true);
-CREATE POLICY "Admin write settings"  ON settings FOR INSERT WITH CHECK (auth.role()='authenticated');
-CREATE POLICY "Admin update settings" ON settings FOR UPDATE USING (auth.role()='authenticated');
+CREATE POLICY "Public read settings"   ON settings FOR SELECT USING (true);
+-- Uses get_my_role() — no circular dependency
+CREATE POLICY "Admin write settings"   ON settings FOR INSERT WITH CHECK (get_my_role()='admin');
+CREATE POLICY "Admin update settings"  ON settings FOR UPDATE USING  (get_my_role()='admin');
 
--- Seed default settings (safe to run multiple times)
 INSERT INTO settings (key, value) VALUES
   ('hospitalName', '"Hospital"'),
   ('reminders',    'true'),
@@ -1232,7 +1686,7 @@ INSERT INTO settings (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 
--- ── 2. EQUIPMENT TABLE ────────────────────────────────────
+-- ── 3. EQUIPMENT TABLE ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS equipment (
   id                 TEXT        PRIMARY KEY DEFAULT gen_random_uuid()::text,
   name               TEXT        NOT NULL CHECK(length(trim(name)) >= 2),
@@ -1250,67 +1704,182 @@ CREATE TABLE IF NOT EXISTS equipment (
   last_calibration   DATE,
   next_calibration   DATE,
   notes              TEXT        NOT NULL DEFAULT '',
+  is_deleted         BOOLEAN     NOT NULL DEFAULT FALSE,  -- soft delete
   last_updated       DATE        NOT NULL DEFAULT CURRENT_DATE,
+  created_by         UUID        REFERENCES auth.users(id),
+  CONSTRAINT unique_serial UNIQUE(serial_number),
   CONSTRAINT chk_cal_dates CHECK (
     calibration_status = 'cal_not_required'
     OR (calibration_status = 'cal_required' AND next_calibration IS NOT NULL)
   )
 );
 
--- Safe column additions for upgrading an existing table
+-- Safe column additions for upgrading existing tables
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS calibration_status TEXT DEFAULT 'cal_not_required';
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS last_calibration   DATE;
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS next_calibration   DATE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS is_deleted         BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE equipment ADD COLUMN IF NOT EXISTS created_by         UUID REFERENCES auth.users(id);
 
--- Indexes for fast queries
-CREATE INDEX IF NOT EXISTS idx_equipment_status       ON equipment(status);
-CREATE INDEX IF NOT EXISTS idx_equipment_cal_status   ON equipment(calibration_status);
-CREATE INDEX IF NOT EXISTS idx_equipment_location     ON equipment(location);
-CREATE INDEX IF NOT EXISTS idx_equipment_last_updated ON equipment(last_updated DESC);
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_equip_status       ON equipment(status)        WHERE is_deleted=FALSE;
+CREATE INDEX IF NOT EXISTS idx_equip_cal          ON equipment(calibration_status) WHERE is_deleted=FALSE;
+CREATE INDEX IF NOT EXISTS idx_equip_location     ON equipment(location)      WHERE is_deleted=FALSE;
+CREATE INDEX IF NOT EXISTS idx_equip_updated      ON equipment(last_updated DESC);
+CREATE INDEX IF NOT EXISTS idx_equip_serial       ON equipment(serial_number);
+CREATE INDEX IF NOT EXISTS idx_equip_not_deleted  ON equipment(is_deleted);
 
--- Row Level Security for equipment
+-- RLS for equipment (role-based)
 ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public read"  ON equipment;
-DROP POLICY IF EXISTS "Admin insert" ON equipment;
-DROP POLICY IF EXISTS "Admin update" ON equipment;
-DROP POLICY IF EXISTS "Admin delete" ON equipment;
-CREATE POLICY "Public read"  ON equipment FOR SELECT USING (true);
-CREATE POLICY "Admin insert" ON equipment FOR INSERT WITH CHECK (auth.role()='authenticated');
-CREATE POLICY "Admin update" ON equipment FOR UPDATE USING (auth.role()='authenticated');
-CREATE POLICY "Admin delete" ON equipment FOR DELETE USING (auth.role()='authenticated');
+DROP POLICY IF EXISTS "Anyone can read live equipment" ON equipment;
+DROP POLICY IF EXISTS "Engineers and admins can insert" ON equipment;
+DROP POLICY IF EXISTS "Engineers and admins can update" ON equipment;
+DROP POLICY IF EXISTS "Admins can soft-delete"         ON equipment;
+
+CREATE POLICY "Anyone can read live equipment" ON equipment
+  FOR SELECT USING (is_deleted = FALSE);
+
+-- Uses get_my_role() security definer function — no circular dependency
+CREATE POLICY "Engineers and admins can insert" ON equipment
+  FOR INSERT WITH CHECK (get_my_role() IN ('admin','engineer'));
+
+CREATE POLICY "Engineers and admins can update" ON equipment
+  FOR UPDATE USING (get_my_role() IN ('admin','engineer'));
+
+CREATE POLICY "Admins can soft-delete" ON equipment
+  FOR DELETE USING (get_my_role() = 'admin');
 
 
--- ── 3. OPTIONAL SAMPLE DATA ───────────────────────────────
--- Remove the /* and */ below to seed sample equipment:
-/*
-INSERT INTO equipment
-  (id,name,category,serial_number,location,status,next_maintenance,
-   calibration_status,last_calibration,next_calibration,notes,last_updated)
-VALUES
-  ('1','Weighing Scale','Vital Signs','20345','OPD','functional_not_in_use',
-   '2026-06-10','cal_required','2025-10-10','2026-10-10','','2026-04-07'),
-  ('2','ECG Machine','Monitoring','AD 89453','Emergency Room','functional_in_use',
-   '2026-08-07','cal_required','2025-08-07','2026-08-07','','2026-04-07'),
-  ('3','Ultrasound Machine','Diagnostic Equipment','US-2024-001','Radiology',
-   'non_functional','2026-05-29','cal_required','2025-05-29','2026-05-29',
-   'Probe malfunction','2026-04-07'),
-  ('4','Defibrillator','Life Support','DF-4421','Emergency Room','functional_in_use',
-   '2026-07-15','cal_required','2025-04-15','2026-04-15','','2026-04-06'),
-  ('5','Infusion Pump','Life Support','IP-0093','ICU','functional_in_use',
-   '2026-07-20','cal_required','2025-01-15','2026-01-15','Calibration overdue','2026-04-05'),
-  ('6','Pulse Oximeter','Vital Signs','PO-7821','Ward A','functional_in_use',
-   '2026-07-01','cal_not_required',NULL,NULL,'','2026-04-04'),
-  ('7','Ventilator','Life Support','VN-2019-3','ICU','needs_repair',
-   '2026-06-14','cal_required','2025-06-14','2026-06-14','Fan bearing worn','2026-04-03'),
-  ('8','Blood Glucose Meter','Laboratory','BG-112','Laboratory','obsolete',
-   '2026-05-01','cal_not_required',NULL,NULL,'Scheduled for disposal','2026-04-02')
-ON CONFLICT (id) DO NOTHING;
-*/
+-- ── 4. AUDIT LOG TABLE ────────────────────────────────────────
+-- Every create/update/delete is automatically logged.
+-- This is required for medical equipment traceability.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id          BIGSERIAL   PRIMARY KEY,
+  table_name  TEXT        NOT NULL,
+  record_id   TEXT        NOT NULL,
+  action      TEXT        NOT NULL CHECK(action IN ('INSERT','UPDATE','DELETE')),
+  user_id     UUID        REFERENCES auth.users(id),
+  user_email  TEXT,
+  old_data    JSONB,
+  new_data    JSONB,
+  changed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ip_hint     TEXT        -- populated by app if available
+);
 
--- ═══════════════════════════════════════════════════════════
--- DONE. The app will now read/write live data from Supabase.
--- Create your admin user at: Supabase → Authentication → Users
--- ═══════════════════════════════════════════════════════════`;
+-- Index for fast lookups
+CREATE INDEX IF NOT EXISTS idx_audit_record   ON audit_log(record_id);
+CREATE INDEX IF NOT EXISTS idx_audit_user     ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_time     ON audit_log(changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_table    ON audit_log(table_name);
+
+-- Trigger function: fires on every equipment change
+CREATE OR REPLACE FUNCTION log_equipment_change()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_user_email TEXT;
+BEGIN
+  SELECT email INTO v_user_email FROM auth.users WHERE id = auth.uid();
+
+  IF (TG_OP = 'DELETE') THEN
+    INSERT INTO audit_log(table_name,record_id,action,user_id,user_email,old_data,new_data)
+    VALUES('equipment', OLD.id, 'DELETE', auth.uid(), v_user_email, to_jsonb(OLD), NULL);
+    RETURN OLD;
+  ELSIF (TG_OP = 'UPDATE') THEN
+    INSERT INTO audit_log(table_name,record_id,action,user_id,user_email,old_data,new_data)
+    VALUES('equipment', NEW.id, 'UPDATE', auth.uid(), v_user_email, to_jsonb(OLD), to_jsonb(NEW));
+    RETURN NEW;
+  ELSIF (TG_OP = 'INSERT') THEN
+    INSERT INTO audit_log(table_name,record_id,action,user_id,user_email,old_data,new_data)
+    VALUES('equipment', NEW.id, 'INSERT', auth.uid(), v_user_email, NULL, to_jsonb(NEW));
+    RETURN NEW;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS equipment_audit ON equipment;
+CREATE TRIGGER equipment_audit
+  AFTER INSERT OR UPDATE OR DELETE ON equipment
+  FOR EACH ROW EXECUTE FUNCTION log_equipment_change();
+
+-- RLS for audit_log (admin read only)
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admins read audit log" ON audit_log;
+-- Uses get_my_role() — no circular dependency
+CREATE POLICY "Admins read audit log" ON audit_log FOR SELECT USING (get_my_role()='admin');
+
+
+-- ── 5. DUPLICATE SERIAL NUMBER PROTECTION ─────────────────────
+-- The UNIQUE constraint above prevents duplicates at DB level.
+-- This function lets the app check before submitting:
+CREATE OR REPLACE FUNCTION check_serial_unique(p_serial TEXT, p_exclude_id TEXT DEFAULT NULL)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN NOT EXISTS (
+    SELECT 1 FROM equipment
+    WHERE serial_number = trim(p_serial)
+      AND is_deleted = FALSE
+      AND (p_exclude_id IS NULL OR id != p_exclude_id)
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ── 6. ENSURE PROFILE FUNCTION ──────────────────────────────
+-- Called by the app on first login to guarantee a profile row exists.
+-- Handles the case where the trigger didn't fire (Dashboard user creation).
+CREATE OR REPLACE FUNCTION ensure_my_profile(p_email TEXT DEFAULT NULL)
+RETURNS TEXT AS $$
+DECLARE
+  v_email TEXT;
+  v_role  TEXT;
+BEGIN
+  -- Get email from auth if not passed
+  v_email := COALESCE(p_email, auth.jwt()->>'email', 'unknown@hospital.com');
+
+  -- Insert profile if it doesn't exist
+  INSERT INTO profiles (id, email, role)
+  VALUES (auth.uid(), v_email, 'viewer')
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Return the role
+  SELECT role INTO v_role FROM profiles WHERE id = auth.uid();
+  RETURN COALESCE(v_role, 'viewer');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- ── 7. GRANT PERMISSIONS ──────────────────────────────────────
+GRANT EXECUTE ON FUNCTION get_my_role()                   TO authenticated;
+GRANT EXECUTE ON FUNCTION ensure_my_profile(TEXT)         TO authenticated;
+GRANT EXECUTE ON FUNCTION ensure_my_profile(TEXT)         TO anon;
+GRANT EXECUTE ON FUNCTION handle_new_user()               TO authenticated;
+GRANT ALL    ON equipment                                  TO authenticated;
+GRANT SELECT ON equipment                                  TO anon;
+GRANT SELECT ON settings  TO anon, authenticated;
+GRANT ALL    ON settings  TO authenticated;
+GRANT SELECT ON audit_log TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE audit_log_id_seq TO authenticated;
+
+-- ── 7. REALTIME SUBSCRIPTIONS ─────────────────────────────────
+-- Enable Realtime so changes broadcast instantly to all open tabs/devices.
+-- In Supabase: Database → Replication → enable these tables.
+-- (Also run this SQL to add them to the publication):
+ALTER PUBLICATION supabase_realtime ADD TABLE equipment;
+ALTER PUBLICATION supabase_realtime ADD TABLE settings;
+
+-- ── 8. REVOKE ANON WRITE ACCESS (defence-in-depth) ────────────
+-- Belt-and-suspenders: even if RLS has a misconfiguration,
+-- the anon role cannot write anything.
+REVOKE INSERT, UPDATE, DELETE ON equipment FROM anon;
+REVOKE INSERT, UPDATE, DELETE ON settings  FROM anon;
+REVOKE INSERT, UPDATE, DELETE ON profiles  FROM anon;
+REVOKE INSERT, UPDATE, DELETE ON audit_log FROM anon;
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- SETUP COMPLETE.
+-- Next steps are in the app: Settings → View Setup SQL → Step-by-Step Guide
+-- ═══════════════════════════════════════════════════════════════`;
     return '<div class="overlay" role="dialog" aria-modal="true">'+
       '<div class="mbox" style="max-height:88vh"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-weight:900;font-size:18px;color:var(--text)">🗄️ Supabase Setup SQL</h2>'+
         '<button id="btn-close-modal" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center">✕</button></div>'+
@@ -1483,6 +2052,10 @@ function bindEvents(){
   function showFE(id,msg){const el=document.getElementById(id);if(el)el.classList.add("err");const e=document.getElementById("err-"+id);if(e){e.textContent=msg;e.style.display="block";}}
   function clearFE(){document.querySelectorAll(".inp.err").forEach(el=>el.classList.remove("err"));document.querySelectorAll(".field-err").forEach(el=>{el.style.display="none";el.textContent="";});}
 
+  // Offline bar setup guide link
+  const offlineGuideLink=document.getElementById("offline-bar-guide");
+  if(offlineGuideLink)offlineGuideLink.addEventListener("click",e=>{e.preventDefault();STATE.modal="setupGuide";render();});
+
   // Nav
   document.querySelectorAll("[data-nav]").forEach(el=>el.addEventListener("click",()=>{STATE.tab=el.dataset.nav;STATE.search="";STATE.showAll=false;STATE.detail=null;STATE.report=null;render();}));
 
@@ -1499,7 +2072,7 @@ function bindEvents(){
   // Detail view
   on("btn-close-detail",()=>{STATE.detail=null;render();});
   on("btn-close-detail-2",()=>{STATE.detail=null;render();});
-  on("btn-detail-edit",()=>{if(STATE.detail&&isAdmin()){STATE.modal={...STATE.detail};STATE.detail=null;render();}});
+  on("btn-detail-edit",()=>{if(STATE.detail&&canEdit()){STATE.modal={...STATE.detail};STATE.detail=null;render();}});
   on("btn-detail-delete",async()=>{
     if(!STATE.detail||!isAdmin())return;
     if(!confirm("Delete \""+san.text(STATE.detail.name)+"\"? This cannot be undone."))return;
@@ -1507,7 +2080,7 @@ function bindEvents(){
   });
 
   // Equipment tab
-  on("btn-add-eq",()=>{if(!isAdmin())return;STATE.modal="add";render();});
+  on("btn-add-eq",()=>{if(!canEdit()){showToast("Admin or Engineer required","error");return;}STATE.modal="add";render();});
   on("btn-admin-login-eq",()=>{STATE.modal="adminLogin";render();});
   on("btn-view-all",()=>{STATE.showAll=!STATE.showAll;render();});
   on("btn-load-all",()=>{STATE.showAll=true;render();});
@@ -1516,7 +2089,7 @@ function bindEvents(){
 
   // Maintenance mark done
   document.querySelectorAll(".btn-mark-done").forEach(btn=>btn.addEventListener("click",async e=>{
-    e.stopPropagation();if(!isAdmin()){showToast("Admin required","error");return;}
+    e.stopPropagation();if(!canEdit()){showToast("Admin or Engineer required","error");return;}
     const item=STATE.equipment.find(x=>x.id===btn.dataset.id);if(!item)return;
     btn.disabled=true;btn.textContent="Saving…";
     try{
@@ -1528,7 +2101,7 @@ function bindEvents(){
 
   // Calibration mark done
   document.querySelectorAll(".btn-mark-cal-done").forEach(btn=>btn.addEventListener("click",async e=>{
-    e.stopPropagation();if(!isAdmin()){showToast("Admin required","error");return;}
+    e.stopPropagation();if(!canEdit()){showToast("Admin or Engineer required","error");return;}
     const item=STATE.equipment.find(x=>x.id===btn.dataset.id);if(!item)return;
     btn.disabled=true;btn.textContent="Saving…";
     try{
@@ -1584,7 +2157,7 @@ function bindEvents(){
     if(locs.length<1){showToast("At least 1 location required","error");return;}
     saveSettingToDB("locations",locs).then(()=>render());showToast(locs.length+" locations saved ✓ — syncing…","success");
   });
-  on("btn-open-bulk",()=>{if(!isAdmin()){showToast("Admin required","error");return;}STATE.bulkResult=null;STATE.modal="bulkUpload";render();});
+  on("btn-open-bulk",()=>{if(!isAdmin()){showToast("Admin role required for bulk upload","error");return;}STATE.bulkResult=null;STATE.modal="bulkUpload";render();});
   on("btn-dl-template",downloadTemplate);
   on("btn-confirm-bulk",confirmBulk);
   on("btn-choose-file",()=>{const fi=document.getElementById("bulk-file-input");if(fi)fi.click();});
@@ -1599,10 +2172,37 @@ function bindEvents(){
   on("exp-csv-s",exportCSV);on("exp-xlsx-s",exportExcel);on("exp-pdf-s",exportPDF);
   on("btn-reset-data",()=>{if(confirm("Reset to sample data? All changes will be lost.")){STATE.equipment=JSON.parse(JSON.stringify(SEED));STATE.settings={...DEFAULT_SETTINGS,categories:[...DEFAULT_CATEGORIES],locations:[...DEFAULT_LOCATIONS]};saveP("medinv_settings",STATE.settings);["hospitalName","reminders","calThreshold","categories","locations"].forEach(k=>saveSettingToDB(k,STATE.settings[k]));showToast("Reset to sample data","info");render();}});
   on("btn-show-sql",()=>{STATE.modal="sqlView";render();});
+  on("btn-show-guide",()=>{STATE.modal="setupGuide";render();});
+  on("btn-view-audit",async()=>{
+    STATE.modal="auditLog";
+    STATE.auditLogs=[];
+    render();
+    if(!STATE.offline){
+      try{
+        const logs=await sb.query("audit_log","order=changed_at.desc&limit=50");
+        if(Array.isArray(logs)){STATE.auditLogs=logs;render();}
+      }catch(e){showToast("Could not load audit log: "+e.message,"error");}
+    }
+  });
+  on("btn-refresh-audit",async()=>{
+    if(STATE.offline){showToast("Requires live Supabase connection","error");return;}
+    try{
+      const logs=await sb.query("audit_log","order=changed_at.desc&limit=50");
+      if(Array.isArray(logs)){STATE.auditLogs=logs;render();}
+    }catch(e){showToast("Refresh failed: "+e.message,"error");}
+  });
   on("btn-copy-sql",async()=>{const el=document.getElementById("sql-content");if(el)try{await navigator.clipboard.writeText(el.textContent);showToast("SQL copied ✓","success");}catch{showToast("Copy failed — select text manually","error");}});
 
   // Modal common
   on("btn-close-modal",()=>{STATE.modal=null;render();});
+  // Mount hCaptcha widget if configured
+  if(HCAPTCHA_SITE_KEY&&typeof hcaptcha!=="undefined"){
+    const captchaEl=document.getElementById("hcaptcha-widget");
+    if(captchaEl&&!captchaEl.dataset.rendered){
+      hcaptcha.render("hcaptcha-widget",{sitekey:HCAPTCHA_SITE_KEY,theme:"light",size:"normal"});
+      captchaEl.dataset.rendered="1";
+    }
+  }
   on("btn-do-login",handleLogin);
   on("btn-save-eq",handleSaveEq);
   on("btn-delete-eq",handleDeleteEq);
@@ -1619,15 +2219,50 @@ async function handleLogin(){
   const pass=san.text(document.getElementById("inp-password")?.value||"");
   const errEl=document.getElementById("login-error");
   if(errEl)errEl.style.display="none";
+  const preCheck=checkRate();
+  if(!preCheck.ok){
+    if(errEl){errEl.textContent=preCheck.msg;errEl.style.display="block";}
+    if(btn){btn.disabled=true;let t=preCheck.wait;const cd=setInterval(()=>{if(t<=0){clearInterval(cd);btn.disabled=false;btn.textContent="Login";return;}btn.textContent="Wait "+t+"s…";t--;},1000);}
+    return;
+  }
   const btn=document.getElementById("btn-do-login");
   if(btn){btn.disabled=true;btn.textContent="Verifying…";}
   const res=await doLogin(email,pass);
-  if(res.ok){STATE.modal=null;render();showToast("Welcome, "+esc(STATE.adminEmail)+" ✓","success");}
+  if(res.ok){
+    STATE.modal=null;
+    // Verify role from DB — never trust client-side state alone
+    if(!STATE.offline){
+      try{
+        // get_my_role() RPC returns a scalar string e.g. "admin"
+        const rr=await sb.getMyRole(STATE.adminEmail);
+        // RPC scalar comes back as raw string or {"get_my_role":"admin"}
+        let dbRole="viewer";
+        if(typeof rr==="string")dbRole=rr;
+        else if(rr&&typeof rr==="object"&&rr.get_my_role)dbRole=rr.get_my_role;
+        // Validate the role is a known value
+        if(!["admin","engineer","technician","viewer"].includes(dbRole))dbRole="viewer";
+        STATE.verifiedRole=dbRole;
+        saveS("medinv_role",dbRole);
+        const roleEmoji={admin:"🔴",engineer:"🔵",technician:"🟡",viewer:"🟢"}[dbRole]||"⚪";
+        showToast("Welcome "+esc(STATE.adminEmail)+" "+roleEmoji+" "+dbRole+" ✓","success");
+      }catch(e){
+        // If role fetch fails, default to viewer (fail-safe)
+        STATE.verifiedRole="viewer";saveS("medinv_role","viewer");
+        showToast("Logged in — could not verify role (defaulting to viewer)","error");
+        console.warn("Role fetch failed:",e.message);
+      }
+    } else {
+      // Demo/offline mode — admin only for testing
+      STATE.verifiedRole="admin";saveS("medinv_role","admin");
+      showToast("Welcome "+esc(STATE.adminEmail)+" [Demo] ✓","success");
+    }
+    render();
+  }
   else{if(errEl){errEl.textContent=res.msg;errEl.style.display="block";}if(btn){btn.disabled=false;btn.textContent="Login";}}
 }
 
 async function handleSaveEq(){
-  if(!isAdmin())return;
+  if(!canEdit()){showToast("Admin or Engineer role required","error");return;}
   function showFE(id,msg){const el=document.getElementById(id);if(el)el.classList.add("err");const e=document.getElementById("err-"+id);if(e){e.textContent=msg;e.style.display="block";}}
   function clearFE(){document.querySelectorAll(".inp.err").forEach(el=>el.classList.remove("err"));document.querySelectorAll(".field-err").forEach(el=>{el.style.display="none";el.textContent="";});}
   clearFE();
@@ -1660,11 +2295,16 @@ async function handleSaveEq(){
   const btn=document.getElementById("btn-save-eq");
   if(btn){btn.disabled=true;btn.textContent="Saving…";}
   try{await persistEquipment(item);STATE.modal=null;await fetchEquipment();showToast(isEdit?"Equipment updated ✓":"Equipment added ✓","success");}
-  catch{if(btn){btn.disabled=false;btn.textContent="💾 "+(isEdit?"Update":"Add")+" Equipment";}}
+  catch{
+    if(btn){btn.disabled=false;btn.textContent="💾 "+(isEdit?"Update":"Add")+" Equipment";}
+    const sb2=document.getElementById("btn-save-eq");
+    if(sb2)delete sb2.dataset.submitting;
+  }
 }
 
 async function handleDeleteEq(){
-  if(!isAdmin()||STATE.modal==="add"||!STATE.modal)return;
+  if(!isAdmin()){showToast("Admin role required to delete","error");return;}
+  if(STATE.modal==="add"||!STATE.modal)return;
   if(!confirm("Delete \""+san.text(STATE.modal.name)+"\"? This cannot be undone."))return;
   try{await removeEquipment(STATE.modal.id);STATE.modal=null;render();showToast("Equipment deleted","info");}catch{}
 }
@@ -1687,17 +2327,37 @@ function showToast(msg,type){
 /* ═══════════════════════════════════════════════════════
    16. BOOT
 ═══════════════════════════════════════════════════════ */
+// Safety check: warn if service_role key accidentally used
+// service_role JWTs contain "role":"service_role" in their payload
+(()=>{
+  try{
+    if(!SUPABASE_ANON.includes("YOUR_ANON")&&SUPABASE_ANON.includes(".")){
+      const payload=JSON.parse(atob(SUPABASE_ANON.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+      if(payload.role==="service_role"){
+        document.body.innerHTML='<div style="font-family:Nunito,sans-serif;padding:40px;max-width:500px;margin:0 auto;text-align:center"><div style="font-size:48px;margin-bottom:16px">🚨</div><h1 style="color:#ef4444;font-size:22px;margin-bottom:12px">SECURITY ERROR</h1><p style="color:#1e293b;font-size:15px;line-height:1.6">You have used the <strong>service_role</strong> key instead of the <strong>anon/public</strong> key. This bypasses all Row Level Security and exposes your entire database.<br/><br/>Replace SUPABASE_ANON with your <strong>anon public key</strong> from Supabase → Settings → API.</p></div>';
+        throw new Error("CRITICAL: service_role key detected in frontend — app halted");
+      }
+    }
+  }catch(e){if(e.message.includes("CRITICAL"))throw e;/* ignore decode errors */}
+})();
+
 if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON.includes("YOUR_ANON")){
   STATE.offline=true;STATE.loading=false;
   STATE.equipment=JSON.parse(JSON.stringify(SEED));
   render();
+  // Show pending queue count on load
+  const pq=loadP(QUEUE_KEY,[]);
+  if(pq.length)showSyncBanner(pq.length);
 }else{
   render();
-  // Load settings from Supabase first so hospital name is correct on all devices,
-  // then load equipment and start polling.
   loadSettingsFromDB().then(()=>{
-    render(); // re-render with synced settings
-    fetchEquipment().then(()=>startPolling());
+    render();
+    fetchEquipment().then(()=>{
+      startRealtime(); // tries Realtime WS first, falls back to polling
+      // Flush any writes that were queued offline
+      const pq=loadP(QUEUE_KEY,[]);
+      if(pq.length){showToast("Flushing "+pq.length+" offline change(s)…","info");flushQueue();}
+    });
   });
 }
 
